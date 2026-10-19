@@ -48,8 +48,8 @@
 ### Steps
 
 1. Clone the repository:
-   git clone https://github.com/eisaaghajani/workshop-manager.git
-   cd workshop-manager
+   git clone https://github.com/eisaaghajani/kargah.git
+   cd kargah
 
 2. Create a virtual environment:
    python -m venv venv
