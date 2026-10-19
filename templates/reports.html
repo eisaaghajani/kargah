@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | گزارش مالی{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>گزارش مالی</h1>
+        <div class="muted">{{ workshop.name }} — سال زراعی {{ farming_year.year }}
+            {% if d_from or d_to %}<br>بازه: {{ d_from or 'ابتدا' }} تا {{ d_to or 'انتها' }}{% endif %}</div>
+    </div>
+    <div class="head-actions no-print">
+        <button class="btn-link" onclick="window.print()"><i class="fas fa-print"></i> چاپ</button>
+        <a class="btn-link" href="{{ url_for('reports.export_csv', workshop_id=workshop.id, year_id=farming_year.id, **{'from': d_from, 'to': d_to}) }}"><i class="fas fa-file-csv"></i> اکسل</a>
+    </div>
+</section>
+
+<form class="range-form card" method="get">
+    <div class="form-grid">
+        <label class="field"><span>از تاریخ</span><input name="from" data-jdate="clear" value="{{ d_from }}" inputmode="numeric" placeholder="1405/01/01" autocomplete="off"></label>
+        <label class="field"><span>تا تاریخ</span><input name="to" data-jdate="clear" value="{{ d_to }}" inputmode="numeric" placeholder="1405/12/29" autocomplete="off"></label>
+    </div>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <button class="btn" type="submit">نمایش گزارش</button>
+</form>
+<div class="presets no-print">
+    {% for label, f, t in presets %}
+    <a class="chip {{ 'on' if f == d_from and t == d_to }}" href="{{ url_for('reports.report_page', workshop_id=workshop.id, year_id=farming_year.id, **{'from': f, 'to': t}) }}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<section class="summary">
+    <div class="stat income"><span class="stat-label">درآمد</span><b>{{ totals.income_total|toman }}</b><small>تومان</small></div>
+    <div class="stat expense"><span class="stat-label">هزینه</span><b>{{ totals.expense_total|toman }}</b><small>تومان</small></div>
+    <div class="stat net {{ 'profit' if totals.net >= 0 else 'loss' }}">
+        <span class="stat-label">{{ 'سود خالص' if totals.net >= 0 else 'زیان' }}</span>
+        <b>{{ totals.net|abs|toman }}</b><small>تومان</small>
+    </div>
+</section>
+
+<div class="two-col">
+    <section class="card">
+        <h2>درآمد به تفکیک</h2>
+        {% for it in totals.income_items %}
+        <div class="bar">
+            <div class="bar-row"><span>{{ it.label }} <small class="muted">{{ it.amount * 100 // totals.income_total }}٪</small></span><b>{{ it.amount|toman }}</b></div>
+            <div class="bar-track"><div class="bar-fill green" style="width: {{ it.amount * 100 // totals.income_total }}%"></div></div>
+        </div>
+        {% else %}<div class="empty">درآمدی در این بازه نیست</div>{% endfor %}
+    </section>
+    <section class="card">
+        <h2>هزینه به تفکیک</h2>
+        {% for it in totals.expense_items %}
+        <div class="bar">
+            <div class="bar-row"><span>{{ it.label }} {% if it.auto %}<small class="muted">(خودکار)</small>{% endif %} <small class="muted">{{ it.amount * 100 // totals.expense_total }}٪</small></span><b>{{ it.amount|toman }}</b></div>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ it.amount * 100 // totals.expense_total }}%"></div></div>
+        </div>
+        {% else %}<div class="empty">هزینه‌ای در این بازه نیست</div>{% endfor %}
+    </section>
+</div>
+
+<section class="card" style="margin-top:14px">
+    <h2>ماه به ماه</h2>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>ماه</th><th>درآمد</th><th>هزینه</th><th>سود / زیان</th></tr></thead>
+            <tbody>
+            {% for m in months %}
+            <tr><td>{{ m.label }}</td><td>{{ m.income|toman }}</td><td>{{ m.expense|toman }}</td>
+                <td class="{{ 'pos' if m.net >= 0 else 'neg' }}">{{ m.net|toman }}</td></tr>
+            {% else %}<tr><td colspan="4" class="empty">داده‌ای نیست</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card" style="margin-top:14px">
+    <h2>مقایسه سال‌های زراعی <small class="muted">(کل هر سال، مستقل از بازه)</small></h2>
+    <div class="tbl-wrap">
+        <table class="tbl">
+            <thead><tr><th>سال</th><th>درآمد</th><th>هزینه</th><th>سود / زیان</th></tr></thead>
+            <tbody>
+            {% for y in compare %}
+            <tr class="{{ 'cur' if y.id == farming_year.id }}"><td>{{ y.year }}</td><td>{{ y.income|toman }}</td><td>{{ y.expense|toman }}</td>
+                <td class="{{ 'pos' if y.net >= 0 else 'neg' }}">{{ y.net|toman }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

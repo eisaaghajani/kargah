@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% set bare = true %}
+{% block title %}حساب و تنظیمات{% endblock %}
+
+{% block content %}
+<header class="app-header">
+    <a class="icon-btn" href="{{ url_for('index') }}"><i class="fas fa-home"></i><span class="btn-txt">کارگاه‌ها</span></a>
+    <div class="app-title"><strong><i class="fas fa-user"></i> حساب و تنظیمات</strong></div>
+    <div class="header-actions" style="display: flex">
+        <button class="icon-btn" onclick="toggleTheme()" title="تغییر ظاهر"><i class="fas fa-moon"></i><span class="btn-txt">ظاهر</span></button>
+        <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="خروج از حساب"><i class="fas fa-sign-out-alt"></i><span class="btn-txt">خروج</span></a>
+    </div>
+</header>
+
+<div class="app-main">
+    <section class="card">
+        <h2><i class="fas fa-user"></i> مشخصات حساب</h2>
+        <p class="muted">با «نام کاربری» یا «ایمیل» وارد برنامه می‌شوید. برای هر تغییر، رمز فعلی لازم است.</p>
+        <label class="field"><span>نام کاربری</span><input id="pName" value="{{ current_user.name }}" autocomplete="username"></label>
+        <label class="field"><span>ایمیل (اختیاری)</span><input id="pEmail" type="email" dir="ltr" value="{{ current_user.email or '' }}" autocomplete="email" placeholder="you@example.com"></label>
+        <label class="field"><span>رمز عبور فعلی</span><input id="pCur" type="password" autocomplete="current-password"></label>
+        <div id="pErr" class="alert" hidden></div>
+        <button class="btn" onclick="saveProfile()">ذخیره‌ی مشخصات</button>
+    </section>
+
+    <section class="card">
+        <h2><i class="fas fa-user"></i> تغییر رمز عبور</h2>
+        <label class="field"><span>رمز عبور فعلی</span><input id="wCur" type="password" autocomplete="current-password"></label>
+        <label class="field"><span>رمز جدید (حداقل ۶ کاراکتر)</span><input id="wNew" type="password" autocomplete="new-password"></label>
+        <label class="field"><span>تکرار رمز جدید</span><input id="wRep" type="password" autocomplete="new-password"></label>
+        <div id="wErr" class="alert" hidden></div>
+        <button class="btn" onclick="savePassword()">تغییر رمز</button>
+        <p class="hint" style="margin-top: 10px">رمز را فراموش کردید؟ روی سیستم اجراکننده‌ی برنامه بزنید: <code dir="ltr">flask --app app reset-password</code></p>
+    </section>
+
+    <section class="card">
+        <h2><i class="fas fa-store"></i> کارگاه‌ها</h2>
+        {% for w in workshops %}
+        <div class="type-row" data-id="{{ w.id }}" data-name="{{ w.name }}">
+            <input class="t-name" value="{{ w.name }}" aria-label="نام کارگاه">
+            <button class="icon-sm" title="ذخیره‌ی نام" onclick="renameWs(this)"><i class="fas fa-check"></i></button>
+            <button class="icon-sm danger" title="حذف کارگاه" onclick="askDelete(this)"><i class="fas fa-trash"></i></button>
+        </div>
+        {% else %}
+        <div class="empty">هنوز کارگاهی ساخته نشده است.</div>
+        {% endfor %}
+    </section>
+
+    <section class="card">
+        <h2><i class="fas fa-coins"></i> پلن و فضای عکس</h2>
+        <div class="type-row"><span class="t-name">پلن فعلی</span>
+            <span class="badge {{ 'orange' if info.plan == 'pro' else 'gray' }}">{{ 'حرفه‌ای' if info.plan == 'pro' else 'رایگان' }}</span></div>
+        {% if info.lifetime %}
+        <div class="type-row"><span class="t-name">اعتبار</span><span>دائمی</span></div>
+        {% elif info.plan == 'pro' %}
+        <div class="type-row"><span class="t-name">اعتبار تا</span><span>{{ info.expires }} ({{ info.days_left }} روز مانده)</span></div>
+        {% elif info.expired %}
+        <div class="alert">پلن حرفه‌ای شما در {{ info.expires }} تمام شد. اطلاعاتتان سر جایش است؛ فقط افزودن عکس جدید بیش از سقف رایگان بسته است.</div>
+        {% endif %}
+        <div class="type-row"><span class="t-name">عکس‌های آرشیو</span><span>{{ used }}{% if limit %} از {{ limit }}{% else %} (نامحدود){% endif %}</span></div>
+        {% if not info.lifetime %}
+        <label class="field" style="margin-top: 12px"><span>کد لایسنس حرفه‌ای</span>
+            <input id="licCode" dir="ltr" autocomplete="off" placeholder="KRG-XXXX-XXXX-XXXX"></label>
+        <div id="licErr" class="alert" hidden></div>
+        <button class="btn" onclick="redeem()">فعال‌سازی</button>
+        {% endif %}
+    </section>
+
+    {% if owner %}
+    <section class="card">
+        <h2><i class="fas fa-print"></i> پشتیبان‌گیری</h2>
+        <p class="muted">یک فایل zip شامل اطلاعات همه‌ی کاربران و همه‌ی عکس‌ها. بهتر است هر چند وقت یک بار آن را جایی امن نگه دارید.</p>
+        <a class="btn" href="{{ url_for('account.backup') }}" download><i class="fas fa-print"></i> دانلود پشتیبان کامل</a>
+    </section>
+
+    <section class="card">
+        <h2><i class="fas fa-print"></i> بازیابی از پشتیبان</h2>
+        <p class="muted">همه‌ی اطلاعات فعلی با محتوای بکاپ جایگزین می‌شود. قبل از آن، خودکار یک نسخه‌ی ایمنی در پوشه‌ی <code dir="ltr">instance/backups</code> ذخیره می‌شود. برای فایل‌های بزرگ‌تر از ۶۴ مگابایت از دستور <code dir="ltr">flask --app app restore backup.zip</code> استفاده کنید.</p>
+        <label class="field"><span>فایل بکاپ (zip)</span><input id="rFile" type="file" accept=".zip,application/zip"></label>
+        <label class="field"><span>رمز عبور فعلی</span><input id="rPw" type="password" autocomplete="current-password"></label>
+        <label class="field"><span>برای تأیید، کلمه‌ی «بازیابی» را بنویسید</span><input id="rConfirm" autocomplete="off"></label>
+        <div id="rErr" class="alert" hidden></div>
+        <button class="btn danger" id="rBtn" onclick="doRestore()">بازیابی بکاپ</button>
+    </section>
+    {% endif %}
+</div>
+
+<dialog id="delDlg" class="modal sm">
+    <div class="modal-head"><h3>حذف کارگاه</h3></div>
+    <p style="margin: 0 0 10px">همه‌ی کارها، درآمدها، هزینه‌ها و عکس‌های «<b id="delName"></b>» برای همیشه پاک می‌شود. برای تأیید، نام کارگاه را بنویسید:</p>
+    <label class="field"><input id="delConfirm" autocomplete="off" placeholder="نام کارگاه"></label>
+    <div id="delErr" class="alert" hidden></div>
+    <div class="btn-row">
+        <button type="button" class="btn secondary" onclick="delDlg.close()">انصراف</button>
+        <button type="button" class="btn danger" onclick="doDelete()">حذف همیشگی</button>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const $ = id => document.getElementById(id);
+    ui.backdropClose($('delDlg'));
+    function err(id, msg) { $(id).textContent = msg || ''; $(id).hidden = !msg; }
+
+    async function saveProfile() {
+        err('pErr');
+        const r = await ui.call('PUT', '/api/account/profile', {name: $('pName').value, email: $('pEmail').value, current_password: $('pCur').value});
+        if (r.success) { $('pCur').value = ''; ui.toast('مشخصات ذخیره شد.'); } else err('pErr', r.error || 'ذخیره نشد.');
+    }
+    async function savePassword() {
+        err('wErr');
+        const r = await ui.call('PUT', '/api/account/password', {current_password: $('wCur').value, new_password: $('wNew').value, repeat_password: $('wRep').value});
+        if (r.success) { ['wCur', 'wNew', 'wRep'].forEach(i => { $(i).value = ''; }); ui.toast('رمز عبور عوض شد.'); } else err('wErr', r.error || 'تغییر نکرد.');
+    }
+    async function renameWs(btn) {
+        const row = btn.closest('.type-row');
+        const r = await ui.call('PUT', '/api/workshop/' + row.dataset.id, {name: row.querySelector('.t-name').value});
+        if (r.success) { row.dataset.name = row.querySelector('.t-name').value.trim(); ui.toast('نام کارگاه ذخیره شد.'); } else ui.toast(r.error || 'ذخیره نشد.', true);
+    }
+    let delId = null;
+    function askDelete(btn) {
+        const row = btn.closest('.type-row');
+        delId = row.dataset.id; $('delName').textContent = row.dataset.name; $('delConfirm').value = ''; err('delErr');
+        $('delDlg').showModal();
+    }
+    async function doDelete() {
+        const r = await ui.call('DELETE', '/api/workshop/' + delId, {confirm_name: $('delConfirm').value});
+        if (r.success) location.reload(); else err('delErr', r.error || 'حذف نشد.');
+    }
+    async function redeem() {
+        err('licErr');
+        const r = await ui.call('POST', '/api/account/license', {code: $('licCode').value});
+        if (r.success) { ui.toast('پلن حرفه‌ای تا ' + r.expires + ' فعال شد.'); setTimeout(() => location.reload(), 1200); } else err('licErr', r.error || 'فعال نشد.');
+    }
+    async function doRestore() {
+        err('rErr');
+        const f = $('rFile').files[0];
+        if (!f) return err('rErr', 'فایل بکاپ (zip) را انتخاب کنید.');
+        const fd = new FormData();
+        fd.append('file', f); fd.append('current_password', $('rPw').value); fd.append('confirm', $('rConfirm').value);
+        const btn = $('rBtn'); btn.disabled = true;
+        let r;
+        try { r = await (await fetch('/api/account/restore', {method: 'POST', body: fd})).json(); }
+        catch (e) { r = {success: false, error: 'ارتباط با سرور برقرار نشد یا فایل بیش از حد بزرگ است.'}; }
+        btn.disabled = false;
+        if (r.success) { ui.toast('بازیابی انجام شد. دوباره وارد شوید…'); setTimeout(() => { location.href = '/login'; }, 1600); }
+        else err('rErr', r.error || 'بازیابی نشد.');
+    }
+</script>
+{% endblock %}

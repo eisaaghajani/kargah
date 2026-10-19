@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | مدیریت{% endblock %}
+
+{% macro opts(items, cur) -%}
+{%- for i in items %}<option {{ 'selected' if i == cur }}>{{ i }}</option>{% endfor -%}
+{%- if cur and cur not in items %}<option selected>{{ cur }}</option>{% endif -%}
+{%- endmacro %}
+{% set TYPES = ['کود', 'سم', 'کود مایع'] %}
+{% set UNITS = ['کیلوگرم', 'لیتر', 'عدد'] %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>مدیریت کارگاه</h1>
+        <div class="muted">{{ workshop.name }}</div>
+    </div>
+    <a class="btn-link" href="{{ url_for('workshop_dashboard', workshop_id=workshop.id, year_id=farming_year.id) }}"><i class="fas fa-seedling"></i> کار روزانه</a>
+</section>
+
+<div class="tabs" role="tablist">
+    <button class="tab on" data-tab="years" onclick="showTab('years')"><i class="fas fa-calendar"></i> سال‌ها</button>
+    <button class="tab" data-tab="acts" onclick="showTab('acts')"><i class="fas fa-tasks"></i> فعالیت‌ها</button>
+    <button class="tab" data-tab="mats" onclick="showTab('mats')"><i class="fas fa-flask"></i> کودها و سموم</button>
+</div>
+
+<section class="card pane" id="pane-years">
+    <h2><i class="fas fa-calendar"></i> سال‌های زراعی</h2>
+    {% for y in years %}
+    <div class="type-row" data-id="{{ y.id }}">
+        <span class="t-name"><strong>{{ y.year }}</strong></span>
+        {% if y.id == farming_year.id %}
+        <span class="badge">سال جاری</span>
+        {% else %}
+        <a class="btn-sm secondary" href="{{ url_for('workshop_dashboard', workshop_id=workshop.id, year_id=y.id) }}">ورود</a>
+        <button class="icon-sm danger" title="حذف" onclick="delYear({{ y.id }}, this)"><i class="fas fa-trash"></i></button>
+        {% endif %}
+    </div>
+    {% endfor %}
+    <div class="type-row add">
+        <input class="t-name" id="newYear" placeholder="سال جدید، مثلاً 1406-1405" aria-label="سال جدید" autocomplete="off">
+        <button class="btn-sm" onclick="addYear()">افزودن</button>
+    </div>
+</section>
+
+<section class="card pane" id="pane-acts" hidden>
+    <h2><i class="fas fa-tasks"></i> فعالیت‌ها</h2>
+    <p class="muted">فعالیتی که «نیاز به مواد» دارد، موقع ثبت کار بخش مواد مصرفی را هم نشان می‌دهد. فعالیتی که قبلاً در کارها استفاده شده، به‌جای حذف، غیرفعال می‌شود.</p>
+    {% for a in activities %}
+    <div class="type-row" data-id="{{ a.id }}">
+        <input class="t-name" value="{{ a.name }}" aria-label="نام فعالیت">
+        <label class="switch"><input type="checkbox" class="a-mat" {{ 'checked' if a.has_material }}><span>نیاز به مواد</span></label>
+        <button class="icon-sm" title="ذخیره" onclick="saveAct(this)"><i class="fas fa-check"></i></button>
+        <button class="icon-sm danger" title="حذف" onclick="delAct(this)"><i class="fas fa-trash"></i></button>
+    </div>
+    {% else %}
+    <div class="empty">هنوز فعالیتی تعریف نشده است.</div>
+    {% endfor %}
+    <div class="type-row add">
+        <input class="t-name" id="newAct" placeholder="فعالیت جدید، مثلاً: وجین" aria-label="فعالیت جدید" autocomplete="off">
+        <label class="switch"><input type="checkbox" id="newActMat"><span>نیاز به مواد</span></label>
+        <button class="btn-sm" onclick="addAct()">افزودن</button>
+    </div>
+</section>
+
+<section class="card pane" id="pane-mats" hidden>
+    <h2><i class="fas fa-flask"></i> کودها و سموم</h2>
+    <p class="muted">قیمت هر واحد (تومان). قیمتِ لحظه‌ی مصرف روی هر کار ثبت می‌شود؛ تغییر قیمت روی مصرف‌های قبلی اثر نمی‌گذارد.</p>
+    {% for m in materials %}
+    <div class="type-row" data-id="{{ m.id }}">
+        <input class="t-name" value="{{ m.name }}" aria-label="نام ماده">
+        <select class="m-type" aria-label="نوع">{{ opts(TYPES, m.type) }}</select>
+        <select class="m-unit" aria-label="واحد">{{ opts(UNITS, m.unit) }}</select>
+        <input class="m-price" inputmode="numeric" value="{{ '{:,}'.format(m.default_price) if m.default_price else '' }}" placeholder="قیمت" aria-label="قیمت" autocomplete="off">
+        <button class="icon-sm" title="ذخیره" onclick="saveMat(this)"><i class="fas fa-check"></i></button>
+        <button class="icon-sm danger" title="حذف" onclick="delMat(this)"><i class="fas fa-trash"></i></button>
+    </div>
+    {% else %}
+    <div class="empty">هنوز ماده‌ای تعریف نشده است.</div>
+    {% endfor %}
+    <div class="type-row add">
+        <input class="t-name" id="newMatName" placeholder="ماده‌ی جدید، مثلاً: کود سولفات" aria-label="ماده‌ی جدید" autocomplete="off">
+        <select id="newMatType" aria-label="نوع">{{ opts(TYPES, 'کود') }}</select>
+        <select id="newMatUnit" aria-label="واحد">{{ opts(UNITS, 'کیلوگرم') }}</select>
+        <input class="m-price" id="newMatPrice" inputmode="numeric" placeholder="قیمت" aria-label="قیمت" autocomplete="off">
+        <button class="btn-sm" onclick="addMat()">افزودن</button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const WORKSHOP_ID = {{ workshop.id }};
+    const $ = id => document.getElementById(id);
+    document.querySelectorAll('.m-price').forEach(ui.money.bind(ui));
+
+    function showTab(name) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+        document.querySelectorAll('.pane').forEach(p => { p.hidden = p.id !== 'pane-' + name; });
+        history.replaceState(null, '', '#' + name);
+    }
+    showTab(['years', 'acts', 'mats'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'years');
+    const done = (res, okMsg, reload) => {
+        if (!res.success) return ui.toast(res.error || 'انجام نشد.', true);
+        if (reload) location.reload(); else ui.toast(okMsg);
+    };
+
+    // ---- سال‌ها ----
+    async function addYear() {
+        done(await ui.call('POST', '/api/add_farming_year', {workshop_id: WORKSHOP_ID, year: $('newYear').value}), '', true);
+    }
+    async function delYear(id) {
+        if (!await ui.confirm('همه‌ی کارها، درآمدها، هزینه‌ها و عکس‌های این سال برای همیشه حذف می‌شود. ادامه می‌دهید؟', {danger: true, ok: 'حذف سال'})) return;
+        done(await ui.call('DELETE', `/api/delete_year/${id}?confirm=1`), '', true);
+    }
+
+    // ---- فعالیت‌ها ----
+    async function addAct() {
+        done(await ui.call('POST', '/api/add_activity', {workshop_id: WORKSHOP_ID, name: $('newAct').value, has_material: $('newActMat').checked}), '', true);
+    }
+    async function saveAct(btn) {
+        const row = btn.closest('.type-row');
+        done(await ui.call('PUT', `/api/update_activity/${row.dataset.id}`, {name: row.querySelector('.t-name').value, has_material: row.querySelector('.a-mat').checked}), 'ذخیره شد');
+    }
+    async function delAct(btn) {
+        if (!await ui.confirm('این فعالیت حذف شود؟', {danger: true})) return;
+        const res = await ui.call('DELETE', `/api/delete_activity/${btn.closest('.type-row').dataset.id}`);
+        if (res.success && res.message) ui.toast(res.message);
+        if (res.success) setTimeout(() => location.reload(), res.message ? 1400 : 0); else ui.toast(res.error || 'حذف نشد.', true);
+    }
+
+    // ---- کودها و سموم ----
+    async function addMat() {
+        done(await ui.call('POST', '/api/add_material', {
+            workshop_id: WORKSHOP_ID, name: $('newMatName').value, type: $('newMatType').value,
+            unit: $('newMatUnit').value, default_price: ui.norm($('newMatPrice').value)
+        }), '', true);
+    }
+    async function saveMat(btn) {
+        const row = btn.closest('.type-row');
+        done(await ui.call('PUT', `/api/update_material/${row.dataset.id}`, {
+            name: row.querySelector('.t-name').value, type: row.querySelector('.m-type').value,
+            unit: row.querySelector('.m-unit').value, default_price: ui.norm(row.querySelector('.m-price').value)
+        }), 'ذخیره شد');
+    }
+    async function delMat(btn) {
+        if (!await ui.confirm('این ماده حذف شود؟', {danger: true})) return;
+        done(await ui.call('DELETE', `/api/delete_material/${btn.closest('.type-row').dataset.id}`), '', true);
+    }
+</script>
+{% endblock %}

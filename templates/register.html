@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% set bare = true %}
+{% block title %}ساخت حساب | دفترچه کارگاه{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    {% if disabled %}
+    <div class="auth-card">
+        <h1><i class="fas fa-seedling"></i> دفترچه کارگاه</h1>
+        <p>ثبت‌نام در حال حاضر فعال نیست.</p>
+        <a class="btn" href="{{ url_for('auth.login') }}">بازگشت به ورود</a>
+    </div>
+    {% else %}
+    <form class="auth-card" method="post">
+        <h1><i class="fas fa-seedling"></i> ساخت حساب</h1>
+        <p>اطلاعات شما فقط برای خودتان قابل مشاهده است</p>
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+        <label class="field"><span>نام کاربری</span>
+            <input name="name" value="{{ form.get('name', '') }}" autocomplete="username" required autofocus></label>
+        <label class="field"><span>ایمیل (اختیاری)</span>
+            <input type="email" name="email" value="{{ form.get('email', '') }}" autocomplete="email" dir="ltr"></label>
+        <label class="field"><span>رمز عبور (حداقل ۶ کاراکتر)</span>
+            <input type="password" name="password" autocomplete="new-password" required></label>
+        <label class="field"><span>تکرار رمز عبور</span>
+            <input type="password" name="password2" autocomplete="new-password" required></label>
+        <button class="btn" type="submit">ساخت حساب و ورود</button>
+        <p style="margin-top: 12px"><a href="{{ url_for('auth.login') }}">قبلاً حساب دارم</a></p>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

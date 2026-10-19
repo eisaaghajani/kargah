@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | کار روزانه{% endblock %}
+
+{% macro work_cost(w) -%}
+{%- set ns = namespace(t=(w.total_wage or 0) + (w.food_cost or 0)) -%}
+{%- for u in w.materials_used if u.material -%}
+{%- set ns.t = ns.t + ((u.quantity or 0) * (u.unit_price if u.unit_price is not none else (u.material.default_price or 0)))|round|int -%}
+{%- endfor -%}
+{{ ns.t }}
+{%- endmacro %}
+
+{% block content %}
+{% set sorted_works = works|sort(attribute='date_shamsi', reverse=true) %}
+{% set tot = namespace(cost=0) %}
+{% for w in sorted_works %}{% set tot.cost = tot.cost + work_cost(w)|int %}{% endfor %}
+
+<section class="page-head">
+    <div>
+        <h1>کار روزانه</h1>
+        <div class="muted">سال زراعی {{ farming_year.year }}</div>
+    </div>
+    <a class="btn-link" href="{{ url_for('manage.manage_page', workshop_id=workshop.id, year_id=farming_year.id) }}">
+        <i class="fas fa-cog"></i> مدیریت
+    </a>
+</section>
+
+<section class="summary">
+    <div class="stat"><span class="stat-label">کار ثبت‌شده</span><b>{{ sorted_works|length }}</b><small>مورد</small></div>
+    <div class="stat"><span class="stat-label">جمع کارگر</span><b>{{ works|sum(attribute='worker_count') }}</b><small>نفر‌روز</small></div>
+    <div class="stat expense net"><span class="stat-label">هزینه‌ی کار روزانه (دستمزد، غذا، مواد)</span><b>{{ tot.cost|toman }}</b><small>تومان</small></div>
+</section>
+
+{% if activities %}
+<div class="chips-scroll" style="margin-top: 14px">
+    <button type="button" class="chip on" onclick="filterWork(this, 0)">همه</button>
+    {% for a in activities %}<button type="button" class="chip" onclick="filterWork(this, {{ a.id }})">{{ a.name }}</button>{% endfor %}
+</div>
+{% endif %}
+
+<ul class="ledger" id="workList">
+    {% for w in sorted_works %}
+    <li class="ledger-item" data-act="{{ w.activity_id }}">
+        <div class="li-main">
+            <div class="li-top">
+                <strong>{{ w.activity.name if w.activity else 'بدون فعالیت' }}</strong>
+                <b class="li-amount minus">{{ work_cost(w)|int|toman }}</b>
+            </div>
+            <div class="li-sub">
+                <span><i class="fas fa-calendar-day"></i> {{ w.date_shamsi }}</span>
+                {% if w.worker_count %}<span><i class="fas fa-users"></i> {{ w.worker_count }} نفر</span>{% endif %}
+                {% if w.total_wage %}<span>دستمزد {{ w.total_wage|toman }}</span>{% endif %}
+                {% if w.food_cost %}<span>غذا {{ w.food_cost|toman }}</span>{% endif %}
+            </div>
+            {% if w.materials_used %}
+            <div class="mat-chips">
+                {% for u in w.materials_used if u.material %}<span class="mat-chip">{{ u.material.name }}: {{ '%g'|format(u.quantity or 0) }} {{ u.material.unit }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            {% if w.description %}<div class="li-desc">{{ w.description }}</div>{% endif %}
+        </div>
+        <div class="li-actions">
+            <button class="icon-sm" title="ویرایش" data-work='{{ {"id": w.id, "date": w.date_shamsi, "activity_id": w.activity_id, "act_name": (w.activity.name if w.activity else ""), "workers": w.worker_count or 0, "wage": w.total_wage or 0, "food": w.food_cost or 0, "desc": w.description or ""}|tojson }}' onclick="openWork(JSON.parse(this.dataset.work))"><i class="fas fa-pen"></i></button>
+            <button class="icon-sm danger" title="حذف" onclick="delWork({{ w.id }})"><i class="fas fa-trash"></i></button>
+        </div>
+    </li>
+    {% else %}
+    <li class="empty-state"><i class="fas fa-seedling"></i>هنوز کاری ثبت نشده است.<br>با دکمه‌ی «ثبت کار» شروع کنید.</li>
+    {% endfor %}
+</ul>
+
+<button class="fab" onclick="openWork()"><i class="fas fa-plus"></i><span>ثبت کار</span></button>
+
+<dialog id="workDlg" class="modal">
+    <div class="modal-head">
+        <h3 id="wTitle">ثبت کار جدید</h3>
+        <button type="button" class="icon-sm" onclick="workDlg.close()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="field">
+        <div class="lbl">چه کاری انجام شد؟</div>
+        <div class="pick-grid" id="actGrid">
+            {% for a in activities %}
+            <label class="pick{{ ' is-mat' if a.has_material }}"><input type="radio" name="act" value="{{ a.id }}" data-mat="{{ 1 if a.has_material else 0 }}"><span>{{ a.name }}</span></label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <label class="field"><span>تاریخ</span>
+        <input id="wDate" data-jdate inputmode="numeric" autocomplete="off" placeholder="1405/01/01"></label>
+    <div class="presets" style="margin-top: -6px">
+        <button type="button" class="chip" onclick="wDate.value = TODAY">امروز</button>
+        <button type="button" class="chip" onclick="wDate.value = YESTERDAY">دیروز</button>
+    </div>
+
+    <div class="field">
+        <div class="lbl">تعداد کارگر</div>
+        <div class="stepper">
+            <button type="button" onclick="step(-1)" aria-label="کمتر">−</button>
+            <input id="wCount" inputmode="numeric" value="0" autocomplete="off">
+            <button type="button" onclick="step(1)" aria-label="بیشتر">+</button>
+        </div>
+    </div>
+    <label class="field"><span>دستمزد هر نفر (تومان)</span>
+        <input id="wWage" inputmode="numeric" autocomplete="off" placeholder="مثلاً 800,000"></label>
+    <div class="live-total"><span>جمع دستمزد</span><b id="wTotal">0</b></div>
+    <label class="field"><span>هزینه‌ی غذا (اختیاری)</span>
+        <input id="wFood" inputmode="numeric" autocomplete="off"></label>
+
+    <div class="sub-card" id="matBox" hidden>
+        <h4><i class="fas fa-flask"></i> مواد مصرفی</h4>
+        <div class="row-inline">
+            <select id="mSel" aria-label="ماده">
+                <option value="">ماده را انتخاب کنید…</option>
+                {% for m in materials %}<option value="{{ m.id }}" data-name="{{ m.name }}" data-unit="{{ m.unit }}">{{ m.name }} ({{ m.unit }})</option>{% endfor %}
+            </select>
+            <input id="mQty" class="qty" inputmode="decimal" autocomplete="off" placeholder="مقدار" aria-label="مقدار">
+            <button type="button" class="btn-sm" onclick="addMat()">افزودن</button>
+        </div>
+        <ul class="picked" id="pickedList"></ul>
+        <details id="nmBox" style="margin-top: 10px">
+            <summary class="muted" style="cursor: pointer">ماده‌ای که در لیست نیست؟</summary>
+            <div class="row-inline" style="flex-wrap: wrap; margin-top: 8px">
+                <input id="nmName" placeholder="نام ماده" aria-label="نام ماده">
+                <select id="nmType" aria-label="نوع"><option>کود</option><option>سم</option><option>کود مایع</option></select>
+                <select id="nmUnit" aria-label="واحد"><option>کیلوگرم</option><option>لیتر</option><option>عدد</option></select>
+                <button type="button" class="btn-sm" onclick="newMat()">ساخت</button>
+            </div>
+        </details>
+    </div>
+
+    <label class="field"><span>توضیحات (اختیاری)</span><textarea id="wDesc" rows="2"></textarea></label>
+    <div id="wErr" class="alert" hidden></div>
+    <div class="btn-row">
+        <button type="button" class="btn secondary" onclick="workDlg.close()">انصراف</button>
+        <button type="button" class="btn" id="wSave" onclick="saveWork()">ذخیره</button>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const YEAR_ID = {{ farming_year.id }}, WORKSHOP_ID = {{ workshop.id }};
+    const TODAY = '{{ today }}', YESTERDAY = '{{ yesterday }}';
+    const $ = id => document.getElementById(id);
+    const dlg = $('workDlg');
+    let editId = null, picked = [], hadMats = false, keepTotal = null;
+
+    ui.money($('wWage')); ui.money($('wFood')); ui.backdropClose(dlg);
+
+    const actInput = () => document.querySelector('input[name=act]:checked');
+    const needsMat = () => { const a = actInput(); return !!a && a.dataset.mat === '1'; };
+    const num = id => parseInt(ui.norm($(id).value), 10) || 0;
+    function total() {
+        if (keepTotal !== null) return keepTotal;
+        const c = num('wCount'), p = num('wWage');
+        return c > 0 ? c * p : p;
+    }
+    function refresh() {
+        $('matBox').hidden = !(needsMat() || picked.length > 0);
+        $('wTotal').textContent = total().toLocaleString('en-US');
+    }
+    function touch() { keepTotal = null; refresh(); }
+    function step(d) { $('wCount').value = Math.max(0, num('wCount') + d); touch(); }
+    function showErr(msg) { $('wErr').textContent = msg || ''; $('wErr').hidden = !msg; }
+    $('wCount').addEventListener('input', touch);
+    $('wWage').addEventListener('input', touch);
+    $('actGrid').addEventListener('change', refresh);
+
+    function renderPicked() {
+        const ul = $('pickedList'); ul.innerHTML = '';
+        picked.forEach((m, i) => {
+            const li = document.createElement('li');
+            const s = document.createElement('span'); s.textContent = `${m.name}: ${m.quantity} ${m.unit}`;
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'icon-sm danger';
+            b.innerHTML = '<i class="fas fa-times"></i>';
+            b.onclick = () => { picked.splice(i, 1); renderPicked(); };
+            li.append(s, b); ul.appendChild(li);
+        });
+        refresh();
+    }
+    function addMat() {
+        const o = $('mSel').selectedOptions[0], q = parseFloat(ui.norm($('mQty').value));
+        if (!o || !o.value) return showErr('ماده را انتخاب کنید.');
+        if (!(q > 0)) return showErr('مقدار مصرف را وارد کنید.');
+        showErr('');
+        const ex = picked.find(m => String(m.material_id) === o.value);
+        if (ex) ex.quantity = +(ex.quantity + q).toFixed(3);
+        else picked.push({material_id: +o.value, name: o.dataset.name, unit: o.dataset.unit, quantity: q});
+        $('mSel').value = ''; $('mQty').value = '';
+        renderPicked();
+    }
+    async function newMat() {
+        const name = $('nmName').value.trim(), unit = $('nmUnit').value;
+        if (!name) return showErr('نام ماده را وارد کنید.');
+        const res = await ui.call('POST', '/api/add_material', {workshop_id: WORKSHOP_ID, name, type: $('nmType').value, unit});
+        if (!res.success) return showErr(res.error || 'ماده اضافه نشد.');
+        const o = new Option(`${name} (${unit})`, res.id); o.dataset.name = name; o.dataset.unit = unit;
+        $('mSel').add(o); $('mSel').value = String(res.id);
+        $('nmName').value = ''; $('nmBox').open = false; $('mQty').focus(); showErr('');
+    }
+
+    async function openWork(item) {
+        editId = item ? item.id : null; picked = []; hadMats = false; keepTotal = null;
+        $('wTitle').textContent = item ? 'ویرایش کار' : 'ثبت کار جدید';
+        showErr('');
+        document.querySelectorAll('.pick.tmp').forEach(e => e.remove());
+        document.querySelectorAll('input[name=act]').forEach(r => { r.checked = false; });
+        if (item && item.activity_id && !document.querySelector(`input[name=act][value="${item.activity_id}"]`)) {
+            const l = document.createElement('label'); l.className = 'pick tmp';
+            l.innerHTML = '<input type="radio" name="act"><span></span>';
+            l.querySelector('input').value = item.activity_id;
+            l.querySelector('span').textContent = (item.act_name || 'فعالیت') + ' (غیرفعال)';
+            $('actGrid').appendChild(l);
+        }
+        if (item) { const r = document.querySelector(`input[name=act][value="${item.activity_id}"]`); if (r) r.checked = true; }
+        const c = item ? item.workers : 0;
+        $('wDate').value = item ? item.date : TODAY;
+        $('wCount').value = c;
+        $('wWage').value = item ? ui.fmt(String(c > 0 ? Math.round(item.wage / c) : item.wage)) : '';
+        keepTotal = item ? item.wage : null;
+        $('wFood').value = item && item.food ? ui.fmt(String(item.food)) : '';
+        $('wDesc').value = item ? item.desc : '';
+        renderPicked();
+        dlg.showModal();
+        if (item) {
+            const r = await ui.call('GET', '/api/get_work_materials/' + item.id);
+            if (Array.isArray(r)) {
+                picked = r.map(m => ({material_id: m.material_id, name: m.name, unit: m.unit, quantity: m.quantity}));
+                hadMats = picked.length > 0; renderPicked();
+            }
+        }
+    }
+
+    async function saveWork() {
+        const a = actInput();
+        if (!a) return showErr('فعالیت را انتخاب کنید.');
+        const mats = picked.map(m => ({material_id: m.material_id, quantity: m.quantity}));
+        if (needsMat() && !mats.length &&
+            !await ui.confirm('ماده‌ای انتخاب نشده است. بدون مواد مصرفی ثبت شود؟', {ok: 'بله، ثبت شود'})) return;
+        const body = {
+            date: $('wDate').value, activity_id: a.value, worker_count: num('wCount'), total_wage: total(),
+            food_cost: num('wFood'), description: $('wDesc').value, farming_year_id: YEAR_ID
+        };
+        const wantsMat = needsMat() || mats.length > 0;
+        const btn = $('wSave'); btn.disabled = true; showErr('');
+        let res;
+        if (editId) {
+            res = await ui.call('POST', '/api/update_work', Object.assign({work_id: editId}, body));
+            if (res.success && (wantsMat || hadMats)) res = await ui.call('POST', '/api/save_material_usage', {work_id: editId, materials: mats});
+        } else if (wantsMat) {
+            res = await ui.call('POST', '/api/save_work_temp', body);
+            if (res.success) {
+                const id = res.work_id;
+                res = await ui.call('POST', '/api/save_material_usage', {work_id: id, materials: mats});
+                if (!res.success) await ui.call('DELETE', '/api/delete_temp_work/' + id);
+            }
+        } else {
+            res = await ui.call('POST', '/api/save_work_final', body);
+        }
+        btn.disabled = false;
+        if (res.success) location.reload(); else showErr(res.error || 'ذخیره نشد.');
+    }
+
+    async function delWork(id) {
+        if (!await ui.confirm('این کار حذف شود؟', {danger: true})) return;
+        const r = await ui.call('DELETE', '/api/delete_work/' + id);
+        if (r.success) location.reload(); else ui.toast(r.error || 'حذف نشد.', true);
+    }
+
+    function filterWork(btn, id) {
+        document.querySelectorAll('.chips-scroll .chip').forEach(c => c.classList.toggle('on', c === btn));
+        document.querySelectorAll('#workList .ledger-item').forEach(li => { li.hidden = !!id && li.dataset.act !== String(id); });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | داشبورد{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <div class="muted">سال زراعی {{ farming_year.year }}</div>
+        <h1>{{ workshop.name }}</h1>
+    </div>
+    <div class="hero-date"><i class="fas fa-calendar-day"></i> {{ today }}</div>
+</section>
+
+<section class="summary">
+    <div class="stat income">
+        <span class="stat-label">درآمد</span>
+        <b>{{ totals.income_total|toman }}</b><small>تومان</small>
+    </div>
+    <div class="stat expense">
+        <span class="stat-label">هزینه</span>
+        <b>{{ totals.expense_total|toman }}</b><small>تومان</small>
+    </div>
+    <div class="stat net {{ 'profit' if totals.net >= 0 else 'loss' }}">
+        <span class="stat-label">{{ 'سود خالص' if totals.net >= 0 else 'زیان' }}</span>
+        <b>{{ totals.net|abs|toman }}</b><small>تومان</small>
+    </div>
+</section>
+
+<h2 class="section-title">کارهای سریع</h2>
+<section class="tiles">
+    {% for t in nav_items[1:] %}
+        {% if t.href %}
+        <a class="tile tone-{{ t.tone }}" href="{{ t.href }}">
+            <div class="tile-icon"><i class="fas {{ t.icon }}"></i></div>
+            <strong>{{ t.short }}</strong>
+            <small>{{ t.desc }}</small>
+        </a>
+        {% else %}
+        <div class="tile tone-{{ t.tone }} disabled">
+            <div class="tile-icon"><i class="fas {{ t.icon }}"></i></div>
+            <strong>{{ t.short }}</strong>
+            <em>به‌زودی</em>
+        </div>
+        {% endif %}
+    {% endfor %}
+</section>
+
+<div class="two-col">
+    <section class="card">
+        <h2>هزینه‌ها به تفکیک</h2>
+        {% for it in totals.expense_items %}
+        <div class="bar">
+            <div class="bar-row"><span>{{ it.label }}</span><b>{{ it.amount|toman }}</b></div>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ it.amount * 100 // max_exp }}%"></div></div>
+        </div>
+        {% else %}
+        <div class="empty">هنوز هزینه‌ای ثبت نشده است</div>
+        {% endfor %}
+    </section>
+
+    <section class="card">
+        <h2>آخرین ثبت‌ها</h2>
+        <ul class="recent">
+            {% for r in recent %}
+            <li>
+                <div class="r-icon"><i class="fas {{ r.icon }}"></i></div>
+                <div class="r-body"><span>{{ r.title }}</span><small>{{ r.date }}</small></div>
+                <div class="r-amount {{ r.sign }}">{{ '+' if r.sign == 'plus' else '−' }}{{ r.amount|toman }}</div>
+            </li>
+            {% else %}
+            <li class="empty">هنوز چیزی ثبت نشده است</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

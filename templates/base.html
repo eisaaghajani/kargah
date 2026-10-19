@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2E7D32">
+    <title>{% block title %}دفترچه کارگاه{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fontawesome/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-ui.css') }}">
+</head>
+<body class="{{ 'auth-body' if bare }}">
+<script>
+    (function () {
+        var t = localStorage.getItem('theme');
+        var dark = t ? t === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.body.classList.add('dark-theme');
+    })();
+    function toggleTheme() {
+        var d = document.body.classList.toggle('dark-theme');
+        localStorage.setItem('theme', d ? 'dark' : 'light');
+    }
+</script>
+
+{% if not bare %}
+<header class="app-header">
+    <button type="button" class="icon-btn menu-btn" onclick="openDrawer()" aria-label="باز کردن منو"><i class="fas fa-bars"></i><span class="btn-txt">منو</span></button>
+    <a class="icon-btn hdr-home" href="{{ url_for('index') }}" title="لیست کارگاه‌ها"><i class="fas fa-home"></i><span class="btn-txt">کارگاه‌ها</span></a>
+    <div class="app-title">
+        <strong>{{ workshop.name }}</strong>
+        <select onchange="location.href=this.value" aria-label="سال زراعی">
+            {% for y in all_years %}
+            <option value="{{ url_for(request.endpoint, workshop_id=workshop.id, year_id=y.id) }}" {% if y.id == farming_year.id %}selected{% endif %}>{{ y.year }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="header-actions">
+        <button type="button" class="icon-btn" onclick="toggleTheme()" title="تغییر ظاهر"><i class="fas fa-moon"></i><span class="btn-txt">ظاهر</span></button>
+        <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="خروج از حساب"><i class="fas fa-sign-out-alt"></i><span class="btn-txt">خروج</span></a>
+    </div>
+</header>
+
+<nav class="app-nav">
+    {% for it in nav_items if it.href and it.endpoint not in ('finance.settings_page', 'manage.manage_page') %}
+    <a href="{{ it.href }}" class="nav-item {{ 'active' if request.endpoint == it.endpoint }}">
+        <i class="fas {{ it.icon }}"></i><span>{{ it.short }}</span>
+    </a>
+    {% endfor %}
+</nav>
+
+<div class="drawer-backdrop" id="drawerBk" onclick="closeDrawer()" hidden></div>
+<aside class="drawer" id="drawer" aria-label="منوی اصلی">
+    <div class="drawer-head">
+        <div><strong>{{ workshop.name }}</strong><small>سال زراعی {{ farming_year.year }}</small></div>
+        <button type="button" class="icon-btn" onclick="closeDrawer()" aria-label="بستن منو"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="drawer-nav">
+        {% for it in nav_items if it.href %}
+        <a href="{{ it.href }}" class="drawer-item tone-{{ it.tone }} {{ 'active' if request.endpoint == it.endpoint }}">
+            <span class="d-ic"><i class="fas {{ it.icon }}"></i></span>
+            <span class="d-txt"><b>{{ it.short }}</b><small>{{ it.desc }}</small></span>
+        </a>
+        {% endfor %}
+    </nav>
+    <div class="drawer-foot">
+        <a class="drawer-item tone-gray" href="{{ url_for('index') }}"><span class="d-ic"><i class="fas fa-home"></i></span><span class="d-txt"><b>لیست کارگاه‌ها</b></span></a>
+        <a class="drawer-item tone-gray" href="{{ url_for('account.account_page') }}"><span class="d-ic"><i class="fas fa-user"></i></span><span class="d-txt"><b>حساب و تنظیمات</b><small>نام کاربری، رمز، پشتیبان</small></span></a>
+        <button type="button" class="drawer-item tone-gray" onclick="toggleTheme()"><span class="d-ic"><i class="fas fa-moon"></i></span><span class="d-txt"><b>تغییر ظاهر (روشن / تیره)</b></span></button>
+        <a class="drawer-item tone-red" href="{{ url_for('auth.logout') }}"><span class="d-ic"><i class="fas fa-sign-out-alt"></i></span><span class="d-txt"><b>خروج از حساب</b></span></a>
+    </div>
+</aside>
+<script>
+    function openDrawer() {
+        document.getElementById('drawer').classList.add('open');
+        document.getElementById('drawerBk').hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer() {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerBk').hidden = true;
+        document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawer(); });
+</script>
+{% endif %}
+
+<main class="{{ 'app-main' if not bare }}">
+    {% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='js/app-ui.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | {{ 'درآمد' if is_income else 'هزینه' }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>{{ 'درآمدها' if is_income else 'هزینه‌ها' }}</h1>
+        <div class="muted">سال زراعی {{ farming_year.year }}</div>
+    </div>
+    <a class="btn-link" href="{{ url_for('finance.settings_page', workshop_id=workshop.id, year_id=farming_year.id) }}">
+        <i class="fas fa-sliders-h"></i> {{ 'انواع درآمد' if is_income else 'دسته‌های هزینه' }}
+    </a>
+</section>
+
+<section class="summary">
+    <div class="stat {{ 'income' if is_income else 'expense' }} net">
+        <span class="stat-label">جمع {{ 'درآمد' if is_income else 'هزینه' }}{{ ' (فیلتر شده)' if filter_type }}</span>
+        <b>{{ total|toman }}</b><small>تومان</small>
+    </div>
+</section>
+
+<div class="toolbar">
+    <select onchange="location.href=this.value" aria-label="فیلتر">
+        <option value="{{ url_for(request.endpoint, workshop_id=workshop.id, year_id=farming_year.id) }}">همه‌ی {{ 'محصولات' if is_income else 'دسته‌ها' }}</option>
+        {% for t in all_types %}
+        <option value="{{ url_for(request.endpoint, workshop_id=workshop.id, year_id=farming_year.id, type=t.id) }}" {% if t.id == filter_type %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<ul class="ledger">
+    {% for it in items %}
+    <li class="ledger-item">
+        <div class="li-main">
+            <div class="li-top">
+                <strong>{{ it.type_name }}</strong>
+                <b class="li-amount {{ 'plus' if is_income else 'minus' }}">{{ it.amount|toman }}</b>
+            </div>
+            <div class="li-sub">
+                <span><i class="fas fa-calendar-day"></i> {{ it.date }}</span>
+                {% if is_income and it.quantity %}<span>{{ '%g'|format(it.quantity) }} {{ it.unit }}{% if it.unit_price %} × {{ it.unit_price|toman }}{% endif %}</span>{% endif %}
+                {% if it.buyer %}<span><i class="fas fa-user"></i> {{ it.buyer }}</span>{% endif %}
+            </div>
+            {% if it.description %}<div class="li-desc">{{ it.description }}</div>{% endif %}
+        </div>
+        <div class="li-actions">
+            <button class="icon-sm" title="ویرایش" data-item='{{ it|tojson }}' onclick="openForm(JSON.parse(this.dataset.item))"><i class="fas fa-pen"></i></button>
+            <button class="icon-sm danger" title="حذف" onclick="del({{ it.id }})"><i class="fas fa-trash"></i></button>
+        </div>
+    </li>
+    {% else %}
+    <li class="empty">هنوز {{ 'درآمدی' if is_income else 'هزینه‌ای' }} ثبت نشده است</li>
+    {% endfor %}
+</ul>
+
+<button class="fab" onclick="openForm()"><i class="fas fa-plus"></i><span>ثبت {{ 'درآمد' if is_income else 'هزینه' }}</span></button>
+
+<dialog id="formDlg" class="modal">
+    <div class="modal-head">
+        <h3 id="dlgTitle"></h3>
+        <button type="button" class="icon-sm" onclick="closeForm()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+    <label class="field"><span>تاریخ</span>
+        <input id="fDate" data-jdate inputmode="numeric" autocomplete="off" placeholder="1405/01/01"></label>
+    <label class="field"><span>{{ 'محصول' if is_income else 'دسته هزینه' }}</span>
+        <select id="fType">
+            {% for t in types %}<option value="{{ t.id }}" data-unit="{{ t.unit }}">{{ t.name }}</option>{% endfor %}
+        </select></label>
+    {% if is_income %}
+    <div class="form-grid">
+        <label class="field"><span>مقدار (<em id="unitLbl">کیلوگرم</em>)</span>
+            <input id="fQty" inputmode="decimal" autocomplete="off"></label>
+        <label class="field"><span>قیمت واحد (تومان)</span>
+            <input id="fPrice" inputmode="numeric" autocomplete="off"></label>
+    </div>
+    {% endif %}
+    <label class="field"><span>مبلغ کل (تومان)</span>
+        <input id="fAmount" inputmode="numeric" autocomplete="off"></label>
+    {% if is_income %}
+    <label class="field"><span>خریدار (اختیاری)</span><input id="fBuyer" autocomplete="off"></label>
+    {% endif %}
+    <label class="field"><span>توضیحات (اختیاری)</span><textarea id="fDesc" rows="2"></textarea></label>
+    <div id="fErr" class="alert" hidden></div>
+    <button type="button" class="btn" onclick="save()">ذخیره</button>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const KIND = '{{ kind }}', YEAR_ID = {{ farming_year.id }}, TODAY = '{{ today }}', INCOME = {{ 'true' if is_income else 'false' }};
+    const FILTER_TYPE = {{ filter_type or 'null' }};
+    const $ = id => document.getElementById(id);
+    let editId = null;
+
+    function norm(s) {
+        return String(s || '').replace(/[۰-۹]/g, c => c.charCodeAt(0) - 1776)
+            .replace(/[٠-٩]/g, c => c.charCodeAt(0) - 1632).replace(/[,،\s]/g, '').replace('٫', '.');
+    }
+    function fmt(s) {
+        const n = norm(s).replace(/[^\d]/g, '');
+        return n ? Number(n).toLocaleString('en-US') : '';
+    }
+    function money(id) { $(id).addEventListener('input', e => { e.target.value = fmt(e.target.value); }); }
+    function autoAmount() {
+        const q = parseFloat(norm($('fQty').value)), p = parseInt(norm($('fPrice').value), 10);
+        if (q > 0 && p > 0) $('fAmount').value = fmt(String(Math.round(q * p)));
+    }
+    function syncUnit() {
+        if (!INCOME) return;
+        const o = $('fType').selectedOptions[0];
+        $('unitLbl').textContent = (o && o.dataset.unit) || 'کیلوگرم';
+    }
+    money('fAmount');
+    $('fType').addEventListener('change', syncUnit);
+    if (INCOME) {
+        money('fPrice');
+        $('fQty').addEventListener('input', autoAmount);
+        $('fPrice').addEventListener('input', autoAmount);
+    }
+
+    function openForm(item) {
+        editId = item ? item.id : null;
+        $('dlgTitle').textContent = (item ? 'ویرایش ' : 'ثبت ') + (INCOME ? 'درآمد' : 'هزینه');
+        $('fErr').hidden = true;
+        const sel = $('fType');
+        if (item && ![...sel.options].some(o => o.value == item.type_id)) {
+            sel.add(new Option(item.type_name + ' (غیرفعال)', item.type_id));
+        }
+        sel.value = item ? item.type_id : (FILTER_TYPE && [...sel.options].some(o => o.value == FILTER_TYPE) ? FILTER_TYPE : (sel.options[0] ? sel.options[0].value : ''));
+        $('fDate').value = item ? item.date : TODAY;
+        $('fAmount').value = item ? fmt(String(item.amount)) : '';
+        $('fDesc').value = item ? item.description : '';
+        if (INCOME) {
+            $('fQty').value = item && item.quantity ? item.quantity : '';
+            $('fPrice').value = item && item.unit_price ? fmt(String(item.unit_price)) : '';
+            $('fBuyer').value = item ? item.buyer : '';
+            syncUnit();
+        }
+        $('formDlg').showModal();
+    }
+    function closeForm() { $('formDlg').close(); }
+    $('formDlg').addEventListener('click', e => { if (e.target === e.currentTarget) closeForm(); });
+
+    async function call(method, url, body) {
+        const r = await fetch(url, {
+            method, headers: {'Content-Type': 'application/json'},
+            body: body ? JSON.stringify(body) : undefined
+        });
+        try { return await r.json(); } catch (e) { return {success: false, error: 'خطای ارتباط با سرور'}; }
+    }
+    async function save() {
+        const p = {
+            year_id: YEAR_ID, date: $('fDate').value, type_id: $('fType').value,
+            amount: norm($('fAmount').value), description: $('fDesc').value
+        };
+        if (INCOME) {
+            p.quantity = norm($('fQty').value); p.unit_price = norm($('fPrice').value); p.buyer = $('fBuyer').value;
+        }
+        const res = editId
+            ? await call('PUT', `/api/finance/${KIND}/${editId}`, p)
+            : await call('POST', `/api/finance/${KIND}`, p);
+        if (res.success) { location.reload(); return; }
+        $('fErr').textContent = res.error || 'ذخیره نشد.';
+        $('fErr').hidden = false;
+    }
+    async function del(id) {
+        if (!await ui.confirm('این مورد حذف شود؟', {danger: true})) return;
+        const res = await call('DELETE', `/api/finance/${KIND}/${id}`);
+        if (res.success) location.reload(); else ui.toast(res.error || 'حذف نشد.', true);
+    }
+</script>
+{% endblock %}

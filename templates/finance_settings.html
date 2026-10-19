@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | تنظیمات مالی{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>تنظیمات مالی</h1>
+        <div class="muted">انواع درآمد، دسته‌های هزینه و قیمت مواد (برای کارگاه {{ workshop.name }})</div>
+    </div>
+</section>
+
+<div class="settings-grid">
+    <section class="card">
+        <h2><i class="fas fa-coins"></i> انواع درآمد</h2>
+        {% for t in income_types %}
+        <div class="type-row" data-kind="income" data-id="{{ t.id }}">
+            <input class="t-name" value="{{ t.name }}" aria-label="نام">
+            <input class="t-unit" value="{{ t.unit }}" aria-label="واحد" size="6">
+            <label class="switch"><input type="checkbox" class="t-active" {{ 'checked' if t.is_active }}><span>فعال</span></label>
+            <button class="icon-sm" title="ذخیره" onclick="saveType(this)"><i class="fas fa-check"></i></button>
+            <button class="icon-sm danger" title="حذف" onclick="delType(this)"><i class="fas fa-trash"></i></button>
+        </div>
+        {% endfor %}
+        <div class="type-row add" data-kind="income">
+            <input class="t-name" placeholder="نوع جدید، مثلاً: سرکه انگور" aria-label="نام">
+            <input class="t-unit" value="کیلوگرم" aria-label="واحد" size="6">
+            <button class="btn-sm" onclick="addType(this)">افزودن</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2><i class="fas fa-receipt"></i> دسته‌های هزینه</h2>
+        {% for t in expense_cats %}
+        <div class="type-row" data-kind="expense" data-id="{{ t.id }}">
+            <input class="t-name" value="{{ t.name }}" aria-label="نام">
+            <label class="switch"><input type="checkbox" class="t-active" {{ 'checked' if t.is_active }}><span>فعال</span></label>
+            <button class="icon-sm" title="ذخیره" onclick="saveType(this)"><i class="fas fa-check"></i></button>
+            <button class="icon-sm danger" title="حذف" onclick="delType(this)"><i class="fas fa-trash"></i></button>
+        </div>
+        {% endfor %}
+        <div class="type-row add" data-kind="expense">
+            <input class="t-name" placeholder="دسته جدید، مثلاً: حق‌آبه" aria-label="نام">
+            <button class="btn-sm" onclick="addType(this)">افزودن</button>
+        </div>
+    </section>
+
+    <section class="card wide">
+        <h2><i class="fas fa-flask"></i> قیمت مواد مصرفی</h2>
+        <p class="muted">قیمت هر واحد (تومان). هر بار که ماده‌ای در «کار روزانه» مصرف می‌شود، قیمتِ همان لحظه ثبت می‌شود؛ تغییر قیمت روی مصرف‌های قبلی اثر نمی‌گذارد (جز مصرف‌های خیلی قدیمی که قیمتی نداشتند).</p>
+        {% for m in materials %}
+        <div class="type-row" data-id="{{ m.id }}">
+            <span class="m-name">{{ m.name }} <small class="muted">({{ m.unit }})</small></span>
+            <input class="m-price" inputmode="numeric" value="{{ '{:,}'.format(m.default_price or 0) if m.default_price else '' }}" placeholder="قیمت" aria-label="قیمت">
+            <button class="icon-sm" title="ذخیره" onclick="savePrice(this)"><i class="fas fa-check"></i></button>
+        </div>
+        {% else %}
+        <div class="empty">هنوز ماده‌ای تعریف نشده؛ از بخش «مدیریت» در صفحه کار روزانه اضافه کنید.</div>
+        {% endfor %}
+    </section>
+</div>
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const WORKSHOP_ID = {{ workshop.id }};
+    function norm(s) {
+        return String(s || '').replace(/[۰-۹]/g, c => c.charCodeAt(0) - 1776)
+            .replace(/[٠-٩]/g, c => c.charCodeAt(0) - 1632).replace(/[,،\s]/g, '');
+    }
+    function fmt(s) { const n = norm(s).replace(/[^\d]/g, ''); return n ? Number(n).toLocaleString('en-US') : ''; }
+    document.querySelectorAll('.m-price').forEach(el => el.addEventListener('input', () => { el.value = fmt(el.value); }));
+
+    function toast(msg, bad) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+        clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 2200);
+    }
+    async function call(method, url, body) {
+        const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+        try { return await r.json(); } catch (e) { return {success: false, error: 'خطای ارتباط با سرور'}; }
+    }
+    function typeBody(row) {
+        const u = row.querySelector('.t-unit'), a = row.querySelector('.t-active');
+        return {workshop_id: WORKSHOP_ID, name: row.querySelector('.t-name').value,
+                unit: u ? u.value : undefined, is_active: a ? a.checked : true};
+    }
+    async function addType(btn) {
+        const row = btn.closest('.type-row');
+        const res = await call('POST', `/api/finance/types/${row.dataset.kind}`, typeBody(row));
+        if (res.success) location.reload(); else toast(res.error || 'افزودن نشد.', true);
+    }
+    async function saveType(btn) {
+        const row = btn.closest('.type-row');
+        const res = await call('PUT', `/api/finance/types/${row.dataset.kind}/${row.dataset.id}`, typeBody(row));
+        toast(res.success ? 'ذخیره شد' : (res.error || 'ذخیره نشد.'), !res.success);
+    }
+    async function delType(btn) {
+        const row = btn.closest('.type-row');
+        if (!await ui.confirm('این مورد حذف شود؟', {danger: true})) return;
+        const res = await call('DELETE', `/api/finance/types/${row.dataset.kind}/${row.dataset.id}`);
+        if (res.success) location.reload(); else toast(res.error || 'حذف نشد.', true);
+    }
+    async function savePrice(btn) {
+        const row = btn.closest('.type-row');
+        const res = await call('PUT', `/api/finance/material-price/${row.dataset.id}`, {price: norm(row.querySelector('.m-price').value)});
+        toast(res.success ? 'قیمت ذخیره شد' : (res.error || 'ذخیره نشد.'), !res.success);
+    }
+</script>
+{% endblock %}

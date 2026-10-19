@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | آرشیو{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>آرشیو مراحل رشد</h1>
+        <div class="muted">سال زراعی {{ farming_year.year }}</div>
+    </div>
+</section>
+
+<section class="card usage">
+    {% if limit %}
+    <div class="bar-row"><span><i class="fas fa-images"></i> عکس‌ها (پلن رایگان)</span><b>{{ used }} از {{ limit }}</b></div>
+    <div class="bar-track"><div class="bar-fill {{ 'red' if used >= limit }}" style="width: {{ [used * 100 // limit, 100]|min }}%"></div></div>
+    {% if used >= limit %}<div class="muted" style="margin-top:6px">سقف عکس‌ها پر شده؛ برای افزودن عکس جدید، عکس‌های قدیمی را حذف کنید یا پلن حرفه‌ای بگیرید.</div>{% endif %}
+    {% else %}
+    <div class="bar-row"><span><i class="fas fa-images"></i> عکس‌ها (پلن حرفه‌ای)</span><b>{{ used }} — نامحدود</b></div>
+    {% endif %}
+</section>
+
+{% if used_stages %}
+<div class="presets">
+    <a class="chip {{ 'on' if not stage }}" href="{{ url_for('archive.archive_page', workshop_id=workshop.id, year_id=farming_year.id) }}">همه</a>
+    {% for s in used_stages %}
+    <a class="chip {{ 'on' if s == stage }}" href="{{ url_for('archive.archive_page', workshop_id=workshop.id, year_id=farming_year.id, stage=s) }}">{{ s }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="arch-grid">
+    {% for e in items %}
+    <article class="arch-card">
+        {% if e.photos %}
+        <div class="arch-photos">
+            {% for pid in e.photos %}
+            <img loading="lazy" src="{{ url_for('archive.media_thumb', photo_id=pid) }}" alt="" onclick="openLb({{ loop.index0 }}, {{ e.id }})">
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="arch-body">
+            <div class="arch-meta">
+                {% if e.stage %}<span class="chip on">{{ e.stage }}</span>{% endif %}
+                <small class="muted"><i class="fas fa-calendar-day"></i> {{ e.date }}</small>
+            </div>
+            <h3>{{ e.title }}</h3>
+            {% if e.description %}<p>{{ e.description }}</p>{% endif %}
+        </div>
+        <div class="arch-actions">
+            <button class="icon-sm" title="ویرایش" onclick="openForm({{ e.id }})"><i class="fas fa-pen"></i></button>
+            <button class="icon-sm danger" title="حذف" onclick="delEntry({{ e.id }})"><i class="fas fa-trash"></i></button>
+        </div>
+    </article>
+    {% else %}
+    <div class="empty">هنوز چیزی در آرشیو نیست؛ اولین عکس یا یادداشت را ثبت کنید</div>
+    {% endfor %}
+</div>
+
+<button class="fab" onclick="openForm()"><i class="fas fa-camera"></i><span>ثبت جدید</span></button>
+
+<dialog id="formDlg" class="modal">
+    <div class="modal-head">
+        <h3 id="dlgTitle"></h3>
+        <button type="button" class="icon-sm" onclick="closeForm()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+    <label class="field"><span>تاریخ</span><input id="fDate" data-jdate inputmode="numeric" autocomplete="off" placeholder="1405/01/01"></label>
+    <label class="field"><span>عنوان</span><input id="fTitle" autocomplete="off" placeholder="مثلاً: شروع غوره‌بندی قطعه بالا"></label>
+    <label class="field"><span>مرحله (اختیاری)</span>
+        <input id="fStage" list="stageList" autocomplete="off" placeholder="غوره، گل‌دهی، برداشت و...">
+        <datalist id="stageList">{% for s in suggestions %}<option value="{{ s }}">{% endfor %}</datalist></label>
+    <label class="field"><span>توضیحات (اختیاری)</span><textarea id="fDesc" rows="3"></textarea></label>
+    <div id="existing" class="existing"></div>
+    <label class="field"><span>عکس‌ها</span>
+        <input id="fFiles" type="file" accept="image/*" multiple></label>
+    <div id="fErr" class="alert" hidden></div>
+    <button type="button" class="btn" id="saveBtn" onclick="save()">ذخیره</button>
+</dialog>
+
+<div id="lb" class="lb" hidden>
+    <button class="lb-x" onclick="closeLb()" aria-label="بستن">&times;</button>
+    <button class="lb-nav lb-prev" onclick="stepLb(1)" aria-label="بعدی">&rsaquo;</button>
+    <img id="lbImg" alt="">
+    <button class="lb-nav lb-next" onclick="stepLb(-1)" aria-label="قبلی">&lsaquo;</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const YEAR_ID = {{ farming_year.id }}, TODAY = '{{ today }}';
+    const ENTRIES = {{ items|tojson }};
+    const $ = id => document.getElementById(id);
+    let editId = null;
+
+    function openForm(id) {
+        const e = id ? ENTRIES.find(x => x.id === id) : null;
+        editId = e ? e.id : null;
+        $('dlgTitle').textContent = e ? 'ویرایش' : 'ثبت در آرشیو';
+        $('fErr').hidden = true;
+        $('fDate').value = e ? e.date : TODAY;
+        $('fTitle').value = e ? e.title : '';
+        $('fStage').value = e ? e.stage : '';
+        $('fDesc').value = e ? e.description : '';
+        $('fFiles').value = '';
+        $('existing').innerHTML = e ? e.photos.map(p =>
+            `<label class="ph"><img src="/media/${p}/thumb" alt=""><input type="checkbox" value="${p}"><span>حذف</span></label>`).join('') : '';
+        $('formDlg').showModal();
+    }
+    function closeForm() { $('formDlg').close(); }
+    $('formDlg').addEventListener('click', e => { if (e.target === e.currentTarget) closeForm(); });
+
+    async function save() {
+        const fd = new FormData();
+        fd.append('year_id', YEAR_ID);
+        fd.append('date', $('fDate').value);
+        fd.append('title', $('fTitle').value);
+        fd.append('stage', $('fStage').value);
+        fd.append('description', $('fDesc').value);
+        fd.append('remove_ids', [...document.querySelectorAll('#existing input:checked')].map(i => i.value).join(','));
+        for (const f of $('fFiles').files) fd.append('photos', f);
+        const btn = $('saveBtn');
+        btn.disabled = true; btn.textContent = 'در حال ارسال…';
+        let res;
+        try {
+            const r = await fetch(editId ? `/api/archive/entries/${editId}` : '/api/archive/entries', {method: 'POST', body: fd});
+            try { res = await r.json(); } catch (e) { res = {success: false, error: r.status === 413 ? 'حجم عکس‌ها زیاد است؛ کمتر انتخاب کنید.' : 'خطای ارتباط با سرور'}; }
+        } catch (e) { res = {success: false, error: 'اتصال برقرار نشد.'}; }
+        btn.disabled = false; btn.textContent = 'ذخیره';
+        if (res.success) { location.reload(); return; }
+        $('fErr').textContent = res.error || 'ذخیره نشد.'; $('fErr').hidden = false;
+    }
+    async function delEntry(id) {
+        if (!await ui.confirm('این مورد و عکس‌هایش حذف شود؟', {danger: true})) return;
+        const r = await fetch(`/api/archive/entries/${id}`, {method: 'DELETE'});
+        if (r.ok) location.reload(); else ui.toast('حذف نشد.', true);
+    }
+
+    let lbList = [], lbIdx = 0;
+    function openLb(i, entryId) {
+        lbList = ENTRIES.find(x => x.id === entryId).photos; lbIdx = i; showLb();
+        $('lb').hidden = false;
+    }
+    function showLb() { $('lbImg').src = `/media/${lbList[lbIdx]}`; }
+    function stepLb(d) { lbIdx = (lbIdx + d + lbList.length) % lbList.length; showLb(); }
+    function closeLb() { $('lb').hidden = true; $('lbImg').src = ''; }
+    $('lb').addEventListener('click', e => { if (e.target === e.currentTarget) closeLb(); });
+    document.addEventListener('keydown', e => {
+        if ($('lb').hidden) return;
+        if (e.key === 'Escape') closeLb(); else if (e.key === 'ArrowLeft') stepLb(1); else if (e.key === 'ArrowRight') stepLb(-1);
+    });
+</script>
+{% endblock %}

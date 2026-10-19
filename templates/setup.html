@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% set bare = true %}
+{% block title %}راه‌اندازی اولیه | دفترچه کارگاه{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <form class="auth-card" method="post">
+        <h1><i class="fas fa-seedling"></i> خوش آمدید</h1>
+        <p>حساب مالک برنامه را بسازید</p>
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+        <label class="field"><span>نام شما</span>
+            <input name="name" value="{{ form.get('name', '') }}" autocomplete="name" required autofocus></label>
+        <label class="field"><span>ایمیل (اختیاری؛ برای ورود با ایمیل)</span>
+            <input type="email" name="email" value="{{ form.get('email', '') }}" autocomplete="email" dir="ltr"></label>
+        <label class="field"><span>رمز عبور (حداقل ۶ کاراکتر)</span>
+            <input type="password" name="password" autocomplete="new-password" required></label>
+        <label class="field"><span>تکرار رمز عبور</span>
+            <input type="password" name="password2" autocomplete="new-password" required></label>
+        <button class="btn" type="submit">ساخت حساب و ورود</button>
+    </form>
+</div>
+{% endblock %}
