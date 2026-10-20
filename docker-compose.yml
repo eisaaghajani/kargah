@@ -1,0 +1,13 @@
+
+services:
+  web:
+    build: .
+    container_name: kargah-web
+    ports:
+      - "5011:5011"
+    volumes:
+      # این خط باعث میشه دیتابیس و عکس‌های آپلود شده، بیرون از کانتینر ذخیره بشن
+      - ./instance:/app/instance
+    env_file:
+      - .env
+    restart: unless-stopped
