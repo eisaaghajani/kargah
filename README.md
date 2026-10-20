@@ -3,7 +3,6 @@ A Persian-first web application for managing agricultural workshops.
 Track daily work, workers, materials, income, expenses, crop stages,
 and generate financial reports.
 
-
 Features
 Multi-workshop & multi-year — manage several workshops, each with multiple farming years
 
@@ -28,14 +27,14 @@ RTL Persian UI — built for Persian users, using the Vazir font
 Responsive — works on desktop, tablet and mobile
 
 Tech Stack
-Layer	Technology
-Backend	Flask 2.3, SQLAlchemy, Flask-Login
-Database	SQLite
-Templating	Jinja2
-Frontend	Vanilla JavaScript, Bootstrap RTL, Vazir font
-Persian calendar	jdatetime
-Image processing	Pillow
-Icons	Font Awesome
+Layer Technology
+Backend Flask 2.3, SQLAlchemy, Flask-Login
+Database SQLite
+Templating Jinja2
+Frontend Vanilla JavaScript, Bootstrap RTL, Vazir font
+Persian calendar jdatetime
+Image processing Pillow
+Icons Font Awesome
 Run with Docker (Recommended)
 The fastest way to run the app without installing Python or dependencies manually:
 
@@ -119,12 +118,12 @@ You'll be redirected to the dashboard — explore the tiles:
 Configuration
 All configuration is via environment variables (see .env.example):
 
-Variable	Default	Description
-SECRET_KEY	auto-generated	Flask session signing key. Change in production.
-ALLOW_REGISTER	0	Set to 1 to allow public registration
-BEHIND_PROXY	0	Set to 1 when behind nginx / a reverse proxy
-COOKIE_SECURE	0	Set to 1 when serving over HTTPS
-ALLOWED_ORIGINS	(empty)	Comma-separated list of extra allowed origins (for CORS)
+Variable Default Description
+SECRET_KEY auto-generated Flask session signing key. Change in production.
+ALLOW_REGISTER 0 Set to 1 to allow public registration
+BEHIND_PROXY 0 Set to 1 when behind nginx / a reverse proxy
+COOKIE_SECURE 0 Set to 1 when serving over HTTPS
+ALLOWED_ORIGINS (empty) Comma-separated list of extra allowed origins (for CORS)
 License
 Portfolio and educational purposes.
 For commercial use, please contact the author.
