@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block title %}{{ workshop.name }} | انبار{% endblock %}
+
+{% macro q(x) -%}{{ '%g'|format(x|round(3)) }}{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>انبار سم و کود</h1>
+        <div class="muted">سال زراعی {{ farming_year.year }}</div>
+    </div>
+    <button class="btn-link" onclick="openInvoice()"><i class="fas fa-file-invoice"></i> ثبت فاکتور خرید</button>
+</section>
+
+<section class="summary">
+    <div class="stat expense"><span class="stat-label">خرید امسال</span><b>{{ year_total|toman }}</b><small>تومان</small></div>
+    <div class="stat"><span class="stat-label">اقلام دارای موجودی</span><b>{{ rows|selectattr('stock', 'gt', 0)|list|length }}</b><small>از {{ rows|length }} قلم</small></div>
+    <div class="stat net {{ 'expense' if alerts }}"><span class="stat-label">هشدار کمبود</span><b>{{ alerts }}</b><small>قلم</small></div>
+</section>
+<p class="hint" style="margin-top: 10px">هزینه‌ی مواد هنگام مصرف در «کار روزانه» حساب می‌شود؛ ثبت فاکتور فقط انبار را پر می‌کند و دوباره در هزینه‌ها نمی‌آید.</p>
+
+<div class="tabs" role="tablist">
+    <button class="tab on" data-tab="stock" onclick="showTab('stock')"><i class="fas fa-warehouse"></i> موجودی</button>
+    <button class="tab" data-tab="inv" onclick="showTab('inv')"><i class="fas fa-file-invoice"></i> فاکتورها ({{ invoices|length }})</button>
+</div>
+
+<section class="pane" id="pane-stock">
+    <div class="stock-list">
+        {% for r in rows %}
+        <div class="stock-item st-{{ r.state }}">
+            <div class="st-main">
+                <strong>{{ r.name }}</strong>
+                <div class="st-meta">{{ r.type }}{% if r.price %} · قیمت {{ r.price|toman }} / {{ r.unit }}{% endif %}</div>
+                <div class="st-meta">خرید امسال {{ q(r.year_bought) }} · مصرف امسال {{ q(r.year_used) }} {{ r.unit }}</div>
+            </div>
+            <div class="st-qty">
+                {% if r.state == 'none' %}<b>—</b><small>ثبت نشده</small>
+                {% else %}<b>{{ q(r.stock) }}</b><small>{{ r.unit }}</small>{% endif %}
+                {% if r.state == 'neg' %}<span class="badge orange">کسری</span>{% elif r.state == 'low' %}<span class="badge orange">کم‌موجودی</span>{% endif %}
+            </div>
+            <div class="st-actions">
+                <button class="btn-sm secondary" onclick="openAdjust({{ r.id }})"><i class="fas fa-sliders-h"></i> تنظیم موجودی</button>
+                <button class="btn-sm secondary" onclick="openMov({{ r.id }})"><i class="fas fa-history"></i> گردش</button>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state"><i class="fas fa-warehouse"></i>هنوز ماده‌ای تعریف نشده است.<br>از «مدیریت کارگاه ← کودها و سموم» اضافه کنید یا همین‌جا فاکتور ثبت کنید.</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="pane" id="pane-inv" hidden>
+    <ul class="ledger">
+        {% for inv in invoices %}
+        <li class="ledger-item">
+            <div class="li-main">
+                <div class="li-top"><strong>{{ inv.seller or 'فاکتور خرید' }}</strong><b class="li-amount minus">{{ inv['items']|sum(attribute='amount')|toman }}</b></div>
+                <div class="li-sub">
+                    <span><i class="fas fa-calendar-day"></i> {{ inv.date }}</span>
+                    {% if inv.invoice_no %}<span><i class="fas fa-file-invoice"></i> شماره {{ inv.invoice_no }}</span>{% endif %}
+                </div>
+                <div class="mat-chips">{% for it in inv['items'] %}<span class="mat-chip">{{ it.name }}: {{ q(it.quantity) }} {{ it.unit }}</span>{% endfor %}</div>
+                {% if inv.description %}<div class="li-desc">{{ inv.description }}</div>{% endif %}
+            </div>
+            <div class="li-actions">
+                <button class="icon-sm" title="ویرایش" data-inv='{{ inv|tojson }}' onclick="openInvoice(JSON.parse(this.dataset.inv))"><i class="fas fa-pen"></i></button>
+                <button class="icon-sm danger" title="حذف" onclick="delInvoice({{ inv.id }})"><i class="fas fa-trash"></i></button>
+            </div>
+        </li>
+        {% else %}
+        <li class="empty-state"><i class="fas fa-file-invoice"></i>هنوز فاکتوری ثبت نشده است.</li>
+        {% endfor %}
+    </ul>
+</section>
+
+<button class="fab" onclick="openInvoice()"><i class="fas fa-plus"></i><span>فاکتور خرید</span></button>
+
+<dialog id="invDlg" class="modal">
+    <div class="modal-head">
+        <h3 id="iTitle">ثبت فاکتور خرید</h3>
+        <button type="button" class="icon-sm" onclick="invDlg.close()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+    <label class="field"><span>تاریخ خرید</span><input id="iDate" data-jdate inputmode="numeric" autocomplete="off" placeholder="1405/01/01"></label>
+    <div class="form-grid">
+        <label class="field"><span>فروشنده (اختیاری)</span><input id="iSeller" autocomplete="off"></label>
+        <label class="field"><span>شماره فاکتور (اختیاری)</span><input id="iNo" autocomplete="off"></label>
+    </div>
+    <div class="lbl">اقلام فاکتور</div>
+    <div id="iLines"></div>
+    <button type="button" class="btn-link" onclick="addLine()"><i class="fas fa-plus"></i> افزودن ردیف</button>
+    <div class="live-total"><span>جمع فاکتور</span><b id="iSum">0</b></div>
+    <details id="nmBox" class="sub-card">
+        <summary class="muted" style="cursor: pointer">ماده‌ای که در لیست نیست؟</summary>
+        <div class="row-inline" style="flex-wrap: wrap; margin-top: 8px">
+            <input id="nmName" placeholder="نام ماده" aria-label="نام ماده">
+            <select id="nmType" aria-label="نوع"><option>کود</option><option>سم</option><option>کود مایع</option></select>
+            <select id="nmUnit" aria-label="واحد"><option>کیلوگرم</option><option>لیتر</option><option>عدد</option></select>
+            <button type="button" class="btn-sm" onclick="newMat()">ساخت</button>
+        </div>
+    </details>
+    <label class="switch" style="margin: 4px 0 12px"><input type="checkbox" id="iUpd" checked><span>قیمت این خرید، قیمت جاری ماده شود</span></label>
+    <label class="field"><span>توضیحات (اختیاری)</span><textarea id="iDesc" rows="2"></textarea></label>
+    <div id="iErr" class="alert" hidden></div>
+    <div class="btn-row">
+        <button type="button" class="btn secondary" onclick="invDlg.close()">انصراف</button>
+        <button type="button" class="btn" id="iSave" onclick="saveInvoice()">ذخیره</button>
+    </div>
+</dialog>
+
+<dialog id="adjDlg" class="modal">
+    <div class="modal-head">
+        <h3>تنظیم موجودی</h3>
+        <button type="button" class="icon-sm" onclick="adjDlg.close()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="live-total"><span id="aName"></span><b id="aCur"></b></div>
+    <label class="field"><span>موجودی واقعی (شمارش‌شده)</span><input id="aQty" inputmode="decimal" autocomplete="off" placeholder="مثلاً 120"></label>
+    <div class="hint" id="aDiff"></div>
+    <label class="field"><span>دلیل تغییر</span>
+        <select id="aReason">{% for r in reasons %}<option>{{ r }}</option>{% endfor %}</select></label>
+    <label class="field"><span>هشدار وقتی موجودی کمتر یا مساوی این مقدار شد (اختیاری)</span><input id="aMin" inputmode="decimal" autocomplete="off"></label>
+    <div id="aErr" class="alert" hidden></div>
+    <div class="btn-row">
+        <button type="button" class="btn secondary" onclick="adjDlg.close()">انصراف</button>
+        <button type="button" class="btn" onclick="saveAdjust()">ذخیره</button>
+    </div>
+</dialog>
+
+<dialog id="movDlg" class="modal">
+    <div class="modal-head">
+        <h3 id="mTitle">گردش انبار</h3>
+        <button type="button" class="icon-sm" onclick="movDlg.close()" aria-label="بستن"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="mBody"></div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const YEAR_ID = {{ farming_year.id }}, WORKSHOP_ID = {{ workshop.id }}, TODAY = '{{ today }}';
+    const MATS = {{ rows|tojson }};
+    const $ = id => document.getElementById(id);
+    const g3 = n => +Number(n || 0).toFixed(3);
+    ['invDlg', 'adjDlg', 'movDlg'].forEach(id => ui.backdropClose($(id)));
+
+    function showTab(name) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+        document.querySelectorAll('.pane').forEach(p => { p.hidden = p.id !== 'pane-' + name; });
+        history.replaceState(null, '', '#' + name);
+    }
+    showTab(location.hash === '#inv' ? 'inv' : 'stock');
+    const err = (id, msg) => { $(id).textContent = msg || ''; $(id).hidden = !msg; };
+
+    // ---------------- فاکتور ----------------
+    let editId = null;
+    function sum() {
+        let s = 0;
+        document.querySelectorAll('#iLines .l-t').forEach(t => { s += parseInt(ui.norm(t.value), 10) || 0; });
+        $('iSum').textContent = s.toLocaleString('en-US');
+    }
+    function addLine(d) {
+        const box = document.createElement('div'); box.className = 'sub-card line';
+        box.innerHTML = '<div class="row-inline"><select class="l-mat" aria-label="ماده"></select>' +
+            '<button type="button" class="icon-sm danger" aria-label="حذف ردیف"><i class="fas fa-trash"></i></button></div>' +
+            '<div class="form-grid" style="margin-top:10px">' +
+            '<label class="field"><span>مقدار (<em class="l-u">واحد</em>)</span><input class="l-q" inputmode="decimal" autocomplete="off"></label>' +
+            '<label class="field"><span>قیمت هر واحد (تومان)</span><input class="l-p" inputmode="numeric" autocomplete="off"></label></div>' +
+            '<label class="field" style="margin-bottom:0"><span>جمع این ردیف (تومان)</span><input class="l-t" inputmode="numeric" autocomplete="off"></label>';
+        const sel = box.querySelector('.l-mat'), q = box.querySelector('.l-q'), p = box.querySelector('.l-p'), t = box.querySelector('.l-t');
+        sel.add(new Option('ماده را انتخاب کنید…', ''));
+        MATS.forEach(m => sel.add(new Option(`${m.name} (${m.unit})`, m.id)));
+        ui.money(p); ui.money(t);
+        ui.link3(q, p, t, sum);
+        sel.addEventListener('change', () => {
+            const m = MATS.find(x => String(x.id) === sel.value);
+            box.querySelector('.l-u').textContent = m ? m.unit : 'واحد';
+            if (m && m.price && !p.value) { p.value = ui.fmt(String(m.price)); p.dispatchEvent(new Event('input')); }
+        });
+        box.querySelector('.icon-sm').onclick = () => { if (document.querySelectorAll('#iLines .line').length > 1) { box.remove(); sum(); } };
+        if (d) {
+            sel.value = d.material_id; sel.dispatchEvent(new Event('change'));
+            q.value = g3(d.quantity); p.value = d.unit_price ? ui.fmt(String(d.unit_price)) : ''; t.value = d.amount ? ui.fmt(String(d.amount)) : '';
+        }
+        $('iLines').appendChild(box); sum();
+    }
+    function openInvoice(inv) {
+        editId = inv ? inv.id : null;
+        $('iTitle').textContent = inv ? 'ویرایش فاکتور خرید' : 'ثبت فاکتور خرید';
+        $('iDate').value = inv ? inv.date : TODAY; $('iSeller').value = inv ? inv.seller : ''; $('iNo').value = inv ? inv.invoice_no : '';
+        $('iDesc').value = inv ? inv.description : ''; $('iUpd').checked = !inv;
+        $('iLines').innerHTML = ''; (inv ? inv.items : [null]).forEach(addLine);
+        err('iErr'); $('invDlg').showModal();
+    }
+    async function saveInvoice() {
+        const items = [...document.querySelectorAll('#iLines .line')].map(b => ({
+            material_id: b.querySelector('.l-mat').value, quantity: ui.norm(b.querySelector('.l-q').value),
+            unit_price: ui.norm(b.querySelector('.l-p').value), amount: ui.norm(b.querySelector('.l-t').value)
+        }));
+        if (items.some(i => !i.material_id)) return err('iErr', 'برای هر ردیف یک ماده انتخاب کنید.');
+        const body = {year_id: YEAR_ID, date: $('iDate').value, seller: $('iSeller').value, invoice_no: $('iNo').value, description: $('iDesc').value, update_prices: $('iUpd').checked, items};
+        const btn = $('iSave'); btn.disabled = true;
+        const r = await ui.call(editId ? 'PUT' : 'POST', editId ? '/api/inventory/invoices/' + editId : '/api/inventory/invoices', body);
+        btn.disabled = false;
+        if (r.success) { location.hash = '#inv'; location.reload(); } else err('iErr', r.error || 'ذخیره نشد.');
+    }
+    async function delInvoice(id) {
+        if (!await ui.confirm('این فاکتور حذف شود؟ موجودی انبار هم بر همین اساس کم می‌شود.', {danger: true})) return;
+        const r = await ui.call('DELETE', '/api/inventory/invoices/' + id);
+        if (r.success) { location.hash = '#inv'; location.reload(); } else ui.toast(r.error || 'حذف نشد.', true);
+    }
+    async function newMat() {
+        const name = $('nmName').value.trim(), unit = $('nmUnit').value;
+        if (!name) return err('iErr', 'نام ماده را وارد کنید.');
+        const r = await ui.call('POST', '/api/add_material', {workshop_id: WORKSHOP_ID, name, type: $('nmType').value, unit});
+        if (!r.success) return err('iErr', r.error || 'ماده اضافه نشد.');
+        MATS.push({id: r.id, name, unit, price: 0, stock: 0});
+        document.querySelectorAll('#iLines .l-mat').forEach(s => s.add(new Option(`${name} (${unit})`, r.id)));
+        const last = [...document.querySelectorAll('#iLines .l-mat')].pop(); last.value = String(r.id); last.dispatchEvent(new Event('change'));
+        $('nmName').value = ''; $('nmBox').open = false; err('iErr');
+    }
+
+    // ---------------- تنظیم موجودی ----------------
+    let adjId = null;
+    function openAdjust(id) {
+        const m = MATS.find(x => x.id === id); adjId = id;
+        $('aName').textContent = m.name; $('aCur').textContent = g3(m.stock) + ' ' + m.unit;
+        $('aQty').value = ''; $('aDiff').textContent = ''; $('aMin').value = m.min_stock || ''; err('aErr');
+        $('adjDlg').showModal();
+    }
+    $('aQty').addEventListener('input', () => {
+        const m = MATS.find(x => x.id === adjId), v = parseFloat(ui.norm($('aQty').value));
+        $('aDiff').textContent = isFinite(v) ? 'تغییر موجودی: ' + (v - m.stock >= 0 ? '+' : '−') + Math.abs(g3(v - m.stock)) + ' ' + m.unit : '';
+    });
+    async function saveAdjust() {
+        const m = MATS.find(x => x.id === adjId), qty = ui.norm($('aQty').value), min = ui.norm($('aMin').value);
+        if (!qty && String(min) === String(m.min_stock || '')) return err('aErr', 'موجودی واقعی یا حداقل هشدار را وارد کنید.');
+        if (qty) {
+            const r = await ui.call('POST', '/api/inventory/adjust', {material_id: adjId, new_quantity: qty, reason: $('aReason').value});
+            if (!r.success) return err('aErr', r.error || 'ذخیره نشد.');
+        }
+        if (String(min) !== String(m.min_stock || '')) {
+            const r = await ui.call('PUT', '/api/inventory/material/' + adjId, {min_stock: min});
+            if (!r.success) return err('aErr', r.error || 'ذخیره نشد.');
+        }
+        location.reload();
+    }
+
+    // ---------------- گردش انبار ----------------
+    async function openMov(id) {
+        const r = await ui.call('GET', `/api/inventory/material/${id}/movements`);
+        if (!r.success) return ui.toast(r.error || 'خوانده نشد.', true);
+        $('mTitle').textContent = 'گردش «' + r.name + '»  —  موجودی ' + g3(r.stock) + ' ' + r.unit;
+        const body = $('mBody'); body.innerHTML = '';
+        if (!r.rows.length) body.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i>هنوز گردشی ثبت نشده است.</div>';
+        const kinds = {purchase: ['خرید', 'plus'], use: ['مصرف', 'minus'], adjust: ['تنظیم انبار', 'plus']};
+        r.rows.forEach(x => {
+            const row = document.createElement('div'); row.className = 'mov-row';
+            const l = document.createElement('div'); l.className = 'mov-main';
+            const k = document.createElement('b'); k.textContent = kinds[x.kind][0];
+            const n = document.createElement('small'); n.textContent = x.date + ' · ' + x.note;
+            l.append(k, n);
+            const a = document.createElement('b'); a.className = 'mov-qty ' + (x.qty >= 0 ? 'plus' : 'minus'); a.textContent = (x.qty >= 0 ? '+' : '−') + Math.abs(g3(x.qty)) + ' ' + r.unit;
+            row.append(l, a); body.appendChild(row);
+        });
+        $('movDlg').showModal();
+    }
+</script>
+{% endblock %}

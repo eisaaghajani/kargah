@@ -260,3 +260,72 @@
     function init() { document.querySelectorAll('input[data-jdate]').forEach(function (i) { ui.datepicker(i); }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
+
+/* [patch11] دکمه‌ی بستنِ دیالوگ با باز شدن، قاب فوکوس نگیرد (ورودی‌ها فوکوس خود را نگه می‌دارند) */
+(function () {
+    if (typeof HTMLDialogElement === 'undefined') return;
+    var orig = HTMLDialogElement.prototype.showModal;
+    HTMLDialogElement.prototype.showModal = function () {
+        orig.call(this);
+        var a = document.activeElement;
+        if (a && a !== document.body && this.contains(a) && a.classList && a.classList.contains('icon-sm') && a.blur) a.blur();
+    };
+})();
+
+/* [patch12] سه فیلد هماهنگ: مقدار، قیمت هر واحد، مبلغ کل — با پر کردن هر دو‌تا، سومی خودکار حساب می‌شود.
+   مقدار (وزن/تعداد) ثابت می‌ماند و قیمت واحد از مبلغ کل محاسبه می‌شود؛ مگر اینکه فقط قیمت و مبلغ را بدهید. */
+(function () {
+    var ui = window.ui;
+    ui.link3 = function (q, p, t, onChange) {
+        var anchor = 'p';                         // آخرین فیلد «پولی» که کاربر پر کرده: قیمت واحد یا مبلغ کل
+        function val(e) { var v = parseFloat(ui.norm(e.value)); return isFinite(v) && v > 0 ? v : 0; }
+        function setP(v) { p.value = ui.fmt(String(Math.round(v))); }
+        function setT(v) { t.value = ui.fmt(String(Math.round(v))); }
+        function setQ(v) { q.value = String(+v.toFixed(3)); }
+        function done() { if (onChange) onChange(); }
+        q.addEventListener('input', function () {
+            var Q = val(q), P = val(p), T = val(t);
+            if (Q) { if (anchor === 't' && T) setP(T / Q); else if (P) setT(Q * P); else if (T) setP(T / Q); }
+            done();
+        });
+        p.addEventListener('input', function () {
+            anchor = 'p';
+            var Q = val(q), P = val(p), T = val(t);
+            if (Q && P) setT(Q * P); else if (P && T) setQ(T / P);
+            done();
+        });
+        t.addEventListener('input', function () {
+            anchor = 't';
+            var Q = val(q), P = val(p), T = val(t);
+            if (Q && T) setP(T / Q); else if (P && T) setQ(T / P);
+            done();
+        });
+        return {reset: function () { anchor = 'p'; }};
+    };
+})();
+
+
+/* [patch13] دکمه‌ی تمام‌صفحه / خروج از تمام‌صفحه */
+(function () {
+    var ui = window.ui, de = document.documentElement;
+    var req = de.requestFullscreen || de.webkitRequestFullscreen;
+    var exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+    function active() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    function sync() {
+        document.querySelectorAll('[data-fs]').forEach(function (b) {
+            b.hidden = !req;                       // مثلاً روی آیفون پشتیبانی نمی‌شود؛ دکمه پنهان می‌ماند
+            var on = active(), i = b.querySelector('i'), t = b.querySelector('[data-fs-text]');
+            if (i) i.className = 'fas ' + (on ? 'fa-compress' : 'fa-expand');
+            if (t) t.textContent = on ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه';
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+    ui.toggleFullscreen = function () {
+        if (!req) return ui.toast('این مرورگر تمام‌صفحه را پشتیبانی نمی‌کند.', true);
+        var fail = function () { ui.toast('تمام‌صفحه فعال نشد.', true); };
+        try { var p = active() ? exitFn.call(document) : req.call(de); if (p && p.catch) p.catch(fail); } catch (e) { fail(); }
+    };
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync); else sync();
+})();

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, with_loader_criteria
 
 from extensions import db
 from models import (Activity, ArchiveEntry, ArchivePhoto, DailyWork, Expense, ExpenseCategory, FarmingYear,
-                    Income, IncomeType, Material, User, WorkMaterial, Workshop)
+                    Income, IncomeType, Material, MaterialInvoice, MaterialPurchase, StockAdjustment, User, WorkMaterial, Workshop)
 
 _installed = False
 
@@ -36,6 +36,8 @@ def _criteria(uid):
     yr = select(t(FarmingYear).id).where(t(FarmingYear).workshop_id.in_(ws))
     wk = select(t(DailyWork).id).where(t(DailyWork).farming_year_id.in_(yr))
     en = select(t(ArchiveEntry).id).where(t(ArchiveEntry).farming_year_id.in_(yr))
+    inv = select(t(MaterialInvoice).id).where(t(MaterialInvoice).farming_year_id.in_(yr))
+    mt = select(t(Material).id).where(t(Material).workshop_id.in_(ws))
     return [
         (Workshop, Workshop.user_id == uid),
         (FarmingYear, FarmingYear.workshop_id.in_(ws)),
@@ -49,6 +51,9 @@ def _criteria(uid):
         (ArchiveEntry, ArchiveEntry.farming_year_id.in_(yr)),
         (WorkMaterial, WorkMaterial.work_id.in_(wk)),
         (ArchivePhoto, ArchivePhoto.entry_id.in_(en)),
+        (MaterialInvoice, MaterialInvoice.farming_year_id.in_(yr)),
+        (MaterialPurchase, MaterialPurchase.invoice_id.in_(inv)),
+        (StockAdjustment, StockAdjustment.material_id.in_(mt)),
     ]
 
 

@@ -165,8 +165,9 @@ def delete_workshop(workshop_id):
     w = db.session.get(Workshop, workshop_id)
     if not w:
         return _bad('کارگاه پیدا نشد.', 404)
-    if (_body().get('confirm_name') or '').strip() != w.name.strip():
-        return _bad('نام کارگاه را دقیقاً مثل خودش بنویسید.')
+    err = _need_password(_body())          # حذف کارگاه همیشه رمز عبور می‌خواهد
+    if err:
+        return err
     db.session.delete(w)
     db.session.commit()
     return _ok()

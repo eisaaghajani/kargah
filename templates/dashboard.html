@@ -24,6 +24,7 @@
         <b>{{ totals.net|abs|toman }}</b><small>تومان</small>
     </div>
 </section>
+{% if totals.gift_count %}<div class="gift-note"><i class="fas fa-gift"></i> هدیه‌ها: {{ totals.gift_count }} مورد به ارزش {{ totals.gift_total|toman }} تومان — دریافت نشده و در درآمد حساب نشده است.</div>{% endif %}
 
 <h2 class="section-title">کارهای سریع</h2>
 <section class="tiles">

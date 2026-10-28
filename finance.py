@@ -65,7 +65,7 @@ def _item(kind, r):
     d = {'id': r.id, 'date': r.date_shamsi, 'type_id': t.id, 'type_name': t.name,
          'amount': r.amount or 0, 'description': r.description or ''}
     if kind == 'income':
-        d.update(unit=t.unit or '', quantity=r.quantity, unit_price=r.unit_price, buyer=r.buyer or '')
+        d.update(unit=t.unit or '', quantity=r.quantity, unit_price=r.unit_price, buyer=r.buyer or '', is_gift=bool(r.is_gift))
     return d
 
 
@@ -86,7 +86,9 @@ def _ledger(kind, workshop_id, year_id):
     items = [_item(kind, r) for r in q.order_by(Rec.date_shamsi.desc(), Rec.id.desc()).all()]
     return render_template(
         'finance_ledger.html', kind=kind, is_income=(kind == 'income'), items=items,
-        total=sum(i['amount'] for i in items), filter_type=filter_type,
+        total=sum(i['amount'] for i in items if not i.get('is_gift')),
+        gift_total=sum(i['amount'] for i in items if i.get('is_gift')),
+        gift_count=sum(1 for i in items if i.get('is_gift')), filter_type=filter_type,
         all_types=[_type_json(t) for t in all_types],
         types=[_type_json(t) for t in all_types if t.is_active], **ctx)
 
@@ -125,8 +127,12 @@ def _apply(kind, rec, data, year):
         q, p = _num(data.get('quantity'), False), _num(data.get('unit_price'))
         if amount is None and q is not None and p is not None:
             amount = int(round(q * p))
+        if amount and q and not p:
+            p = int(round(amount / q))      # قیمت هر واحد (مثلاً کیلویی) از مبلغ کل و مقدار
         rec.quantity, rec.unit_price = q, p
         rec.buyer = (data.get('buyer') or '').strip()[:100]
+        g = data.get('is_gift')
+        rec.is_gift = (g.strip().lower() in ('1', 'true', 'on', 'yes')) if isinstance(g, str) else bool(g)
     if not amount:
         raise ValueError('مبلغ را وارد کنید.')
     rec.amount = amount

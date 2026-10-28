@@ -546,6 +546,10 @@ def delete_material(material_id):
     used = WorkMaterial.query.filter_by(material_id=material.id).count()
     if used:
         raise ValueError('این ماده در %d مصرف ثبت‌شده استفاده شده و قابل حذف نیست.' % used)
+    from models import MaterialPurchase, StockAdjustment
+    if (MaterialPurchase.query.filter_by(material_id=material.id).count()
+            or StockAdjustment.query.filter_by(material_id=material.id).count()):
+        raise ValueError('برای این ماده فاکتور خرید یا تنظیم انبار ثبت شده و قابل حذف نیست.')
     db.session.delete(material)
     db.session.commit()
     return jsonify({'success': True})
@@ -571,6 +575,8 @@ import tenancy
 tenancy.install()   # هر کاربر فقط داده‌ی خودش را می‌بیند
 from signup import bp as signup_bp
 app.register_blueprint(signup_bp)
+from inventory import bp as inventory_bp
+app.register_blueprint(inventory_bp)
 # [next-blueprints] پچ‌های بعدی ماژول‌های جدید را اینجا ثبت می‌کنند
 
 with app.app_context():

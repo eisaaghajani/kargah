@@ -7,6 +7,7 @@
     <div class="app-title"><strong><i class="fas fa-seedling"></i> دفترچه کارگاه</strong></div>
     <div class="header-actions">
         <a class="icon-btn" href="{{ url_for('account.account_page') }}" title="حساب و تنظیمات"><i class="fas fa-user"></i><span class="btn-txt">حساب</span></a>
+        <button type="button" class="icon-btn" data-fs onclick="ui.toggleFullscreen()" title="تمام‌صفحه"><i class="fas fa-expand"></i><span class="btn-txt" data-fs-text>تمام‌صفحه</span></button>
         <button class="icon-btn" onclick="toggleTheme()" title="تغییر ظاهر"><i class="fas fa-moon"></i><span class="btn-txt">ظاهر</span></button>
         <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="خروج از حساب"><i class="fas fa-sign-out-alt"></i><span class="btn-txt">خروج</span></a>
     </div>
@@ -20,7 +21,7 @@
     <div class="ws-list">
         {% for w in workshops %}
         <section class="ws-card">
-            <h3><i class="fas fa-store"></i> {{ w.name }}</h3>
+            <h3><i class="fas fa-store"></i> {{ w.name }}<button type="button" class="icon-sm danger ws-del" title="حذف کارگاه" data-id="{{ w.id }}" data-name="{{ w.name }}" onclick="askDelete(this)"><i class="fas fa-trash"></i></button></h3>
             <div class="ws-years">
                 {% for y in w.farming_years %}
                 <a class="chip" href="{{ url_for('dashboard.dashboard', workshop_id=w.id, year_id=y.id) }}">{{ y.year }}</a>
@@ -34,6 +35,17 @@
 </div>
 
 <button class="fab" style="bottom: calc(24px + env(safe-area-inset-bottom))" onclick="openNew()"><i class="fas fa-plus"></i><span>کارگاه جدید</span></button>
+
+<dialog id="delDlg" class="modal sm">
+    <div class="modal-head"><h3>حذف کارگاه</h3></div>
+    <p style="margin: 0 0 10px">همه‌ی کارها، درآمدها، هزینه‌ها، انبار و عکس‌های «<b id="delName"></b>» برای همیشه پاک می‌شود. برای تأیید، رمز عبور خود را وارد کنید:</p>
+    <label class="field"><input id="delPw" type="password" autocomplete="current-password" placeholder="رمز عبور"></label>
+    <div id="delErr" class="alert" hidden></div>
+    <div class="btn-row">
+        <button type="button" class="btn secondary" onclick="delDlg.close()">انصراف</button>
+        <button type="button" class="btn danger" onclick="doDelete()">حذف همیشگی</button>
+    </div>
+</dialog>
 
 <dialog id="newDlg" class="modal">
     <div class="modal-head">
@@ -70,6 +82,16 @@
         const b = document.createElement('button'); b.type = 'button'; b.className = 'icon-sm danger'; b.innerHTML = '<i class="fas fa-trash"></i>';
         b.onclick = () => { if (document.querySelectorAll('.year-input').length > 1) d.remove(); };
         d.append(i, b); $('yearRows').appendChild(d);
+    }
+    ui.backdropClose($('delDlg'));
+    let delId = null;
+    function askDelete(btn) {
+        delId = btn.dataset.id; $('delName').textContent = btn.dataset.name; $('delPw').value = ''; $('delErr').hidden = true;
+        $('delDlg').showModal(); $('delPw').focus();
+    }
+    async function doDelete() {
+        const r = await ui.call('DELETE', '/api/workshop/' + delId, {current_password: $('delPw').value});
+        if (r.success) location.reload(); else { $('delErr').textContent = r.error || 'حذف نشد.'; $('delErr').hidden = false; }
     }
     function openNew() {
         $('wsName').value = ''; $('yearRows').innerHTML = ''; addRow(suggestYear());

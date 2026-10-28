@@ -518,3 +518,150 @@ dialog.cal .modal-head { justify-content: space-between; }
 .cal-d.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .cal-d.sel, .cal-d.sel.fri { background: var(--primary); color: #fff; font-weight: bold; }
 .btn-row .btn.secondary { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
+
+
+/* ================= [patch11] اصلاح ایرادهای دیده‌شده در مرورگر واقعی ================= */
+/* ۱) دکمه‌های پایین دیالوگ‌ها: دکمه‌ی اصلی از صفحه بیرون نزند (حذف، ذخیره، امروز) */
+.btn-row .btn { width: auto; min-width: 0; }
+.btn-row .btn.secondary { flex: 0 0 34%; padding-left: 14px; padding-right: 14px; }
+dialog.cal .btn-row .btn, dialog.cal .btn-row .btn.secondary { flex: 1 1 0; }
+
+/* ۲) تقویم: عنوان و دکمه‌ی بستن روی هم نیفتند */
+dialog.modal.cal .modal-head { justify-content: space-between; }
+
+/* ۳) منوی همبرگری: همه‌ی بخش‌ها بدون اسکرول جا شوند */
+.drawer-item { padding: 7px 10px; margin-bottom: 2px; }
+.d-ic { width: 38px; height: 38px; font-size: 1rem; }
+.drawer-nav { padding: 8px; }
+@media (max-height: 800px) { .d-txt small { display: none; } }
+
+/* ۴) صفحه‌های بدون منو (لیست کارگاه‌ها، حساب): دکمه‌های هدر در موبایل دیده شوند و هدر مرتب بشکند */
+@media (max-width: 767.98px) {
+    body.auth-body .header-actions { display: flex; gap: 8px; }
+    body.auth-body .app-header { flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+    body.auth-body .app-header .app-title { order: -1; flex: 1 1 100%; }
+}
+
+
+/* ================= [patch12] انبار ================= */
+.alert.warn { background: rgba(245, 124, 0, .14); color: #a65100; }
+body.dark-theme .alert.warn { background: #3a2a12; color: #ffcc80; }
+@media (max-height: 900px) { .d-txt small { display: none; } }
+
+.stock-list { display: flex; flex-direction: column; gap: 10px; }
+.stock-item {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 14px; background: var(--card);
+    border: 1px solid var(--border); border-right: 5px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.stock-item.st-ok { border-right-color: var(--primary); }
+.stock-item.st-low { border-right-color: var(--accent); }
+.stock-item.st-neg { border-right-color: var(--red); }
+.st-main strong { font-size: 1.02rem; }
+.st-meta { margin-top: 3px; font-size: .78rem; color: var(--muted); }
+.st-qty { text-align: left; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.st-qty b { font-size: 1.5rem; line-height: 1.2; color: var(--primary); }
+.st-qty small { color: var(--muted); font-size: .78rem; }
+.st-low .st-qty b { color: var(--accent); }
+.st-neg .st-qty b { color: var(--red); }
+.st-none .st-qty b { color: var(--muted); }
+.st-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.mov-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
+.mov-main { display: flex; flex-direction: column; min-width: 0; }
+.mov-main small { color: var(--muted); font-size: .76rem; }
+.mov-qty.plus { color: var(--primary); }
+.mov-qty.minus { color: var(--red); }
+.line .field { margin-bottom: 10px; }
+.line em { font-style: normal; color: inherit; }
+
+/* ---- آیکون‌های جدید (SVG داخل CSS) ---- */
+.fa-warehouse::before, .fa-file-invoice::before, .fa-gift::before, .fa-expand::before, .fa-compress::before, .fa-exclamation-triangle::before, .fa-history::before {
+    content: ""; display: inline-block; width: 1em; height: 1em; vertical-align: -.14em; background-color: currentColor;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain;
+}
+.fa-warehouse::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath d='M504 352H136.4c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8H504c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm0 96H136.1c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8h368c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm0-192H136.6c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8H504c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm106.5-139L338.4 3.7a48.15 48.15 0 0 0-36.9 0L29.5 117C11.7 124.5 0 141.9 0 161.3V504c0 4.4 3.6 8 8 8h80c4.4 0 8-3.6 8-8V256c0-17.6 14.6-32 32.6-32h382.8c18 0 32.6 14.4 32.6 32v248c0 4.4 3.6 8 8 8h80c4.4 0 8-3.6 8-8V161.3c0-19.4-11.7-36.8-29.5-44.3z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 512'%3E%3Cpath d='M504 352H136.4c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8H504c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm0 96H136.1c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8h368c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm0-192H136.6c-4.4 0-8 3.6-8 8l-.1 48c0 4.4 3.6 8 8 8H504c4.4 0 8-3.6 8-8v-48c0-4.4-3.6-8-8-8zm106.5-139L338.4 3.7a48.15 48.15 0 0 0-36.9 0L29.5 117C11.7 124.5 0 141.9 0 161.3V504c0 4.4 3.6 8 8 8h80c4.4 0 8-3.6 8-8V256c0-17.6 14.6-32 32.6-32h382.8c18 0 32.6 14.4 32.6 32v248c0 4.4 3.6 8 8 8h80c4.4 0 8-3.6 8-8V161.3c0-19.4-11.7-36.8-29.5-44.3z'/%3E%3C/svg%3E"); }
+.fa-file-invoice::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M288 256H96v64h192v-64zm89-151L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-153 31V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zM64 72c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8V72zm0 64c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8v-16zm256 304c0 4.42-3.58 8-8 8h-80c-4.42 0-8-3.58-8-8v-16c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16zm0-200v96c0 8.84-7.16 16-16 16H80c-8.84 0-16-7.16-16-16v-96c0-8.84 7.16-16 16-16h224c8.84 0 16 7.16 16 16z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M288 256H96v64h192v-64zm89-151L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-153 31V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zM64 72c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8V72zm0 64c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16c0 4.42-3.58 8-8 8H72c-4.42 0-8-3.58-8-8v-16zm256 304c0 4.42-3.58 8-8 8h-80c-4.42 0-8-3.58-8-8v-16c0-4.42 3.58-8 8-8h80c4.42 0 8 3.58 8 8v16zm0-200v96c0 8.84-7.16 16-16 16H80c-8.84 0-16-7.16-16-16v-96c0-8.84 7.16-16 16-16h224c8.84 0 16 7.16 16 16z'/%3E%3C/svg%3E"); }
+.fa-gift::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M32 448c0 17.7 14.3 32 32 32h160V320H32v128zm256 32h160c17.7 0 32-14.3 32-32V320H288v160zm192-320h-42.1c6.2-12.1 10.1-25.5 10.1-40 0-48.5-39.5-88-88-88-41.6 0-68.5 21.3-103 68.3-34.5-47-61.4-68.3-103-68.3-48.5 0-88 39.5-88 88 0 14.5 3.8 27.9 10.1 40H32c-17.7 0-32 14.3-32 32v80c0 8.8 7.2 16 16 16h480c8.8 0 16-7.2 16-16v-80c0-17.7-14.3-32-32-32zm-326.1 0c-22.1 0-40-17.9-40-40s17.9-40 40-40c19.9 0 34.6 3.3 86.1 80h-86.1zm206.1 0h-86.1c51.4-76.5 65.7-80 86.1-80 22.1 0 40 17.9 40 40s-17.9 40-40 40z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M32 448c0 17.7 14.3 32 32 32h160V320H32v128zm256 32h160c17.7 0 32-14.3 32-32V320H288v160zm192-320h-42.1c6.2-12.1 10.1-25.5 10.1-40 0-48.5-39.5-88-88-88-41.6 0-68.5 21.3-103 68.3-34.5-47-61.4-68.3-103-68.3-48.5 0-88 39.5-88 88 0 14.5 3.8 27.9 10.1 40H32c-17.7 0-32 14.3-32 32v80c0 8.8 7.2 16 16 16h480c8.8 0 16-7.2 16-16v-80c0-17.7-14.3-32-32-32zm-326.1 0c-22.1 0-40-17.9-40-40s17.9-40 40-40c19.9 0 34.6 3.3 86.1 80h-86.1zm206.1 0h-86.1c51.4-76.5 65.7-80 86.1-80 22.1 0 40 17.9 40 40s-17.9 40-40 40z'/%3E%3C/svg%3E"); }
+.fa-expand::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z'/%3E%3C/svg%3E"); }
+.fa-compress::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M436 192H312c-13.3 0-24-10.7-24-24V44c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v84h84c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm-276-24V44c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v84H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24zm0 300V344c0-13.3-10.7-24-24-24H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-84h84c6.6 0 12-5.4 12-12v-40c0-6.6-5.4-12-12-12H312c-13.3 0-24 10.7-24 24v124c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M436 192H312c-13.3 0-24-10.7-24-24V44c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v84h84c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm-276-24V44c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v84H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24zm0 300V344c0-13.3-10.7-24-24-24H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-84h84c6.6 0 12-5.4 12-12v-40c0-6.6-5.4-12-12-12H312c-13.3 0-24 10.7-24 24v124c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12z'/%3E%3C/svg%3E"); }
+.fa-exclamation-triangle::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath d='M569.517 440.013C587.975 472.007 564.806 512 527.94 512H48.054c-36.937 0-59.999-40.055-41.577-71.987L246.423 23.985c18.467-32.009 64.72-31.951 83.154 0l239.94 416.028zM288 354c-25.405 0-46 20.595-46 46s20.595 46 46 46 46-20.595 46-46-20.595-46-46-46zm-43.673-165.346l7.418 136c.347 6.364 5.609 11.346 11.982 11.346h48.546c6.373 0 11.635-4.982 11.982-11.346l7.418-136c.375-6.874-5.098-12.654-11.982-12.654h-63.383c-6.884 0-12.356 5.78-11.981 12.654z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath d='M569.517 440.013C587.975 472.007 564.806 512 527.94 512H48.054c-36.937 0-59.999-40.055-41.577-71.987L246.423 23.985c18.467-32.009 64.72-31.951 83.154 0l239.94 416.028zM288 354c-25.405 0-46 20.595-46 46s20.595 46 46 46 46-20.595 46-46-20.595-46-46-46zm-43.673-165.346l7.418 136c.347 6.364 5.609 11.346 11.982 11.346h48.546c6.373 0 11.635-4.982 11.982-11.346l7.418-136c.375-6.874-5.098-12.654-11.982-12.654h-63.383c-6.884 0-12.356 5.78-11.981 12.654z'/%3E%3C/svg%3E"); }
+.fa-history::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M504 255.531c.253 136.64-111.18 248.372-247.82 248.468-59.015.042-113.223-20.53-155.822-54.911-11.077-8.94-11.905-25.541-1.839-35.607l11.267-11.267c8.609-8.609 22.353-9.551 31.891-1.984C173.062 425.135 212.781 440 256 440c101.705 0 184-82.311 184-184 0-101.705-82.311-184-184-184-48.814 0-93.149 18.969-126.068 49.932l50.754 50.754c10.08 10.08 2.941 27.314-11.313 27.314H24c-8.837 0-16-7.163-16-16V38.627c0-14.254 17.234-21.393 27.314-11.314l49.372 49.372C129.209 34.136 189.552 8 256 8c136.81 0 247.747 110.78 248 247.531zm-180.912 78.784l9.823-12.63c8.138-10.463 6.253-25.542-4.21-33.679L288 256.349V152c0-13.255-10.745-24-24-24h-16c-13.255 0-24 10.745-24 24v135.651l65.409 50.874c10.463 8.137 25.541 6.253 33.679-4.21z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M504 255.531c.253 136.64-111.18 248.372-247.82 248.468-59.015.042-113.223-20.53-155.822-54.911-11.077-8.94-11.905-25.541-1.839-35.607l11.267-11.267c8.609-8.609 22.353-9.551 31.891-1.984C173.062 425.135 212.781 440 256 440c101.705 0 184-82.311 184-184 0-101.705-82.311-184-184-184-48.814 0-93.149 18.969-126.068 49.932l50.754 50.754c10.08 10.08 2.941 27.314-11.313 27.314H24c-8.837 0-16-7.163-16-16V38.627c0-14.254 17.234-21.393 27.314-11.314l49.372 49.372C129.209 34.136 189.552 8 256 8c136.81 0 247.747 110.78 248 247.531zm-180.912 78.784l9.823-12.63c8.138-10.463 6.253-25.542-4.21-33.679L288 256.349V152c0-13.255-10.745-24-24-24h-16c-13.255 0-24 10.745-24 24v135.651l65.409 50.874c10.463 8.137 25.541 6.253 33.679-4.21z'/%3E%3C/svg%3E"); }
+
+
+/* ================= [patch13] هدیه، حالت دستمزد، تمام‌صفحه، حذف کارگاه ================= */
+.gift-note {
+    display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; padding: 10px 14px; border-radius: 14px;
+    background: rgba(245, 124, 0, .13); color: #a65100; font-size: .88rem;
+}
+body.dark-theme .gift-note { background: #3a2a12; color: #ffcc80; }
+.stat.gift { border-right-color: var(--accent); }
+.li-amount.gift { color: var(--accent); }
+.gift-switch { display: flex; margin: 0 0 14px; font-size: .88rem; }
+.tabs.mini { margin-bottom: 10px; }
+.tabs.mini .tab { padding: 8px 6px; font-size: .85rem; }
+.ws-card h3 { position: relative; }
+.ws-card .ws-del { margin-inline-start: auto; width: 34px; height: 34px; }
+.ws-card h3 .ws-del i { color: var(--red); }
+
+/* منوی همبرگری با ۱۴ آیتم: فشرده‌تر تا روی گوشی ۸۴۴ پیکسلی بدون اسکرول جا شود */
+.drawer-item { padding: 5px 10px; margin-bottom: 1px; }
+.d-ic { width: 36px; height: 36px; font-size: .95rem; }
+.drawer-head { padding-top: 12px; padding-bottom: 10px; }
+.drawer-foot { padding-top: 6px; padding-bottom: 8px; }
+
+
+/* ================= [patch14] دسکتاپ: فرم‌های استاندارد، پنجره‌ی دوستونه، صفحه‌های جمع‌وجور ================= */
+@media (min-width: 768px) {
+    /* عرض صفحه: نه بیش‌ازحد کشیده */
+    .app-main, .app-nav { max-width: 960px; }
+    .app-main.narrow { max-width: 720px; }
+    .app-main.narrow .card .field { max-width: 440px; }
+    .summary { grid-template-columns: repeat(auto-fill, minmax(200px, 280px)); }
+    .toolbar select { max-width: 380px; }
+
+    /* اندازه‌ی استاندارد فیلدها و دکمه‌ها (ارتفاع حدود ۴۰ پیکسل) */
+    .field input, .field select, .field textarea, .toolbar select,
+    .row-inline select, .row-inline input, .type-row select, .cal-head select {
+        padding: 8px 12px; font-size: .95rem; border-radius: 10px;
+    }
+    .field input[type=file] { padding: 6px 8px; }
+    .field .stepper input { padding: 8px; }
+    .stepper button { width: 40px; height: 40px; border-radius: 10px; font-size: 1.2rem; }
+    .btn { padding: 10px 16px; font-size: .95rem; border-radius: 12px; }
+    .pick span { min-height: 38px; font-size: .88rem; border-radius: 10px; }
+    .pick-grid { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 6px; margin-bottom: 10px; }
+    .live-total { padding: 8px 12px; margin: 0 0 14px; }
+    .field { margin-bottom: 12px; }
+
+    /* پنجره‌های فرم: پهن‌تر و دوستونه تا اسکرول لازم نشود */
+    dialog.modal:not(.sm):not(.cal) { width: min(760px, calc(100vw - 48px)); }
+    dialog.modal:not(.sm):not(.cal)[open] { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; align-content: start; }
+    dialog.modal:not(.sm):not(.cal)[open] > * { grid-column: 1 / -1; }
+    dialog.modal:not(.sm):not(.cal)[open] > .field,
+    dialog.modal:not(.sm):not(.cal)[open] > .live-total,
+    dialog.modal:not(.sm):not(.cal)[open] > .presets,
+    dialog.modal:not(.sm):not(.cal)[open] > .tabs.mini { grid-column: auto; }
+    dialog.modal:not(.sm):not(.cal)[open] > .field:has(textarea),
+    dialog.modal:not(.sm):not(.cal)[open] > .field:has(.pick-grid),
+    dialog.modal:not(.sm):not(.cal)[open] > .field:has(input[type=file]),
+    dialog.modal:not(.sm):not(.cal)[open] > .field:has(#yearRows) { grid-column: 1 / -1; }
+    dialog.modal:not(.sm):not(.cal)[open] > .presets { align-self: end; margin: 0 0 12px !important; }
+    dialog.modal:not(.sm):not(.cal)[open] > .tabs.mini { align-self: end; margin-bottom: 12px; }
+    dialog.modal:not(.sm):not(.cal)[open] > .btn-link { justify-self: start; }
+    dialog.modal:not(.sm):not(.cal)[open] .btn-row { margin-top: 6px; }
+
+    /* فاکتور انبار: هر ردیف کالا یک خط (ماده | مقدار | قیمت | جمع) */
+    .line { display: grid; grid-template-columns: 1.7fr 1fr 1fr 1fr; gap: 0 10px; align-items: end; padding: 10px 12px; }
+    .line .form-grid { display: contents; }
+    .line .row-inline, .line .field { margin: 0 !important; }
+    /* فیلدهای تکی در ردیف‌ها و لیست سال‌ها کشیده نباشند */
+    .type-row.add .t-name, .app-main.narrow .type-row .t-name { max-width: 420px; }
+    .year-input { flex: 0 1 320px !important; }
+    /* صفحه‌های تنظیمات: دکمه‌ها هم‌عرض فیلدها و کارت‌ها با فاصله */
+    .app-main.narrow .card { margin-bottom: 16px; }
+    .app-main.narrow .card > .btn { max-width: 440px; }
+}
+
+/* دکمه‌ی شناور کنار لبه‌ی محتوا بماند، نه گوشه‌ی دور مرورگر */
+@media (min-width: 1100px) {
+    .fab { left: max(16px, calc(50% - 480px)); }
+}

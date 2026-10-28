@@ -45,7 +45,7 @@ def _range():
 
 def _monthly(year_id, d_from, d_to):
     keys = set()
-    for Model, extra in ((Income, None), (Expense, None), (DailyWork, DailyWork.is_temp.is_(False))):
+    for Model, extra in ((Income, Income.is_gift.isnot(True)), (Expense, None), (DailyWork, DailyWork.is_temp.is_(False))):
         q = db.session.query(Model.date_shamsi).filter(Model.farming_year_id == year_id)
         if extra is not None:
             q = q.filter(extra)
@@ -95,6 +95,8 @@ def export_csv(workshop_id, year_id):
     w.writerow(['درآمد', 'مبلغ (تومان)'])
     w.writerows([[i['label'], i['amount']] for i in t['income_items']])
     w.writerow(['جمع درآمد', t['income_total']])
+    if t['gift_count']:
+        w.writerow(['هدیه‌ها (دریافت نشده؛ جزو درآمد نیست)', t['gift_total'], '%d مورد' % t['gift_count']])
     w.writerow([])
     w.writerow(['هزینه', 'مبلغ (تومان)'])
     w.writerows([[i['label'], i['amount']] for i in t['expense_items']])

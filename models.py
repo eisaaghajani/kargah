@@ -41,6 +41,7 @@ class Material(db.Model):
     type = db.Column(db.String(50))
     unit = db.Column(db.String(20), default='لیتر')
     default_price = db.Column(db.Integer, nullable=True)
+    min_stock = db.Column(db.Float, nullable=True)   # حداقل موجودی برای هشدار
     workshop_id = db.Column(db.Integer, db.ForeignKey('workshops.id'), nullable=False)
 
 class DailyWork(db.Model):
@@ -126,6 +127,46 @@ class License(db.Model):
     used_at = db.Column(db.DateTime)
 
 
+# ==================== انبار سم و کود ====================
+class MaterialInvoice(db.Model):
+    __tablename__ = 'material_invoices'
+    id = db.Column(db.Integer, primary_key=True)
+    date_shamsi = db.Column(db.String(10), nullable=False)
+    seller = db.Column(db.String(100), default='')
+    invoice_no = db.Column(db.String(50), default='')
+    description = db.Column(db.Text, default='')
+    farming_year_id = db.Column(db.Integer, db.ForeignKey('farming_years.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    farming_year = db.relationship('FarmingYear', backref=db.backref('material_invoices', cascade='all, delete-orphan'))
+    items = db.relationship('MaterialPurchase', backref='invoice', cascade='all, delete-orphan')
+
+
+class MaterialPurchase(db.Model):
+    __tablename__ = 'material_purchases'
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('material_invoices.id'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=False)
+    quantity = db.Column(db.Float, nullable=False, default=0)
+    unit_price = db.Column(db.Integer, nullable=True)
+    amount = db.Column(db.Integer, default=0)
+
+    material = db.relationship('Material', backref=db.backref('purchases', cascade='all, delete-orphan'))
+
+
+class StockAdjustment(db.Model):
+    """تغییر دستی موجودی (شمارش انبار، ضایعات، موجودی اول دوره...)؛ quantity می‌تواند منفی باشد."""
+    __tablename__ = 'stock_adjustments'
+    id = db.Column(db.Integer, primary_key=True)
+    material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=False)
+    date_shamsi = db.Column(db.String(10), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    reason = db.Column(db.String(100), default='')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    material = db.relationship('Material', backref=db.backref('adjustments', cascade='all, delete-orphan'))
+
+
 # ==================== درآمد ====================
 class IncomeType(db.Model):
     __tablename__ = 'income_types'
@@ -146,6 +187,7 @@ class Income(db.Model):
     unit_price = db.Column(db.Integer, nullable=True)   # تومان
     amount = db.Column(db.Integer, nullable=False, default=0)  # تومان
     buyer = db.Column(db.String(100), default='')
+    is_gift = db.Column(db.Boolean, default=False)   # هدیه: ارزش ثبت می‌شود ولی در درآمد حساب نمی‌شود
     description = db.Column(db.Text, default='')
     farming_year_id = db.Column(db.Integer, db.ForeignKey('farming_years.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -239,7 +281,7 @@ def ensure_columns():
     if 'unit_price' not in cols:
         with db.engine.begin() as conn:
             conn.execute(text('ALTER TABLE work_materials ADD COLUMN unit_price INTEGER'))
-    for table, col, ddl in (('workshops', 'user_id', 'INTEGER'), ('users', 'plan_expires_at', 'DATETIME')):
+    for table, col, ddl in (('workshops', 'user_id', 'INTEGER'), ('users', 'plan_expires_at', 'DATETIME'), ('materials', 'min_stock', 'FLOAT'), ('incomes', 'is_gift', 'BOOLEAN DEFAULT 0')):
         have = {c['name'] for c in inspect(db.engine).get_columns(table)}
         if col not in have:
             with db.engine.begin() as conn:

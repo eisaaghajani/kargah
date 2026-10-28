@@ -19,7 +19,7 @@ def year_totals(year_id, d_from=None, d_to=None):
     inc_rows = _rng(
         db.session.query(IncomeType.name, func.sum(Income.amount))
         .join(Income, Income.income_type_id == IncomeType.id)
-        .filter(Income.farming_year_id == year_id),
+        .filter(Income.farming_year_id == year_id, Income.is_gift.isnot(True)),
         Income.date_shamsi, d_from, d_to).group_by(IncomeType.id).all()
     income_items = sorted(
         [{'label': n, 'amount': int(a or 0)} for n, a in inc_rows if a],
@@ -54,6 +54,10 @@ def year_totals(year_id, d_from=None, d_to=None):
     ]
     expense_items = sorted([i for i in auto + manual if i['amount']], key=lambda i: -i['amount'])
 
+    g_total, g_count = _rng(
+        db.session.query(func.coalesce(func.sum(Income.amount), 0), func.count(Income.id))
+        .filter(Income.farming_year_id == year_id, Income.is_gift.is_(True)),
+        Income.date_shamsi, d_from, d_to).one()
     income_total = sum(i['amount'] for i in income_items)
     expense_total = sum(i['amount'] for i in expense_items)
     return {
@@ -62,6 +66,8 @@ def year_totals(year_id, d_from=None, d_to=None):
         'income_total': income_total,
         'expense_total': expense_total,
         'net': income_total - expense_total,
+        'gift_total': int(g_total or 0),
+        'gift_count': int(g_count or 0),
     }
 
 
@@ -73,7 +79,7 @@ def recent_items(year_id, limit=6):
                       'title': w.activity.name if w.activity else 'کار روزانه',
                       'amount': (w.total_wage or 0) + (w.food_cost or 0),
                       'date': w.date_shamsi, 'ts': w.created_at or datetime.min})
-    for i in (Income.query.filter_by(farming_year_id=year_id)
+    for i in (Income.query.filter_by(farming_year_id=year_id).filter(Income.is_gift.isnot(True))
               .order_by(Income.id.desc()).limit(limit)):
         items.append({'icon': 'fa-coins', 'sign': 'plus', 'title': i.income_type.name,
                       'amount': i.amount or 0, 'date': i.date_shamsi,

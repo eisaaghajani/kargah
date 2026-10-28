@@ -17,6 +17,10 @@
         <span class="stat-label">جمع {{ 'درآمد' if is_income else 'هزینه' }}{{ ' (فیلتر شده)' if filter_type }}</span>
         <b>{{ total|toman }}</b><small>تومان</small>
     </div>
+    {% if is_income and gift_count %}
+    <div class="stat net gift"><span class="stat-label"><i class="fas fa-gift"></i> هدیه‌ها (دریافت نشده)</span>
+        <b>{{ gift_total|toman }}</b><small>{{ gift_count }} مورد — در جمع درآمد حساب نمی‌شود</small></div>
+    {% endif %}
 </section>
 
 <div class="toolbar">
@@ -33,12 +37,12 @@
     <li class="ledger-item">
         <div class="li-main">
             <div class="li-top">
-                <strong>{{ it.type_name }}</strong>
-                <b class="li-amount {{ 'plus' if is_income else 'minus' }}">{{ it.amount|toman }}</b>
+                <strong>{{ it.type_name }}{% if it.is_gift %} <span class="badge orange"><i class="fas fa-gift"></i> هدیه</span>{% endif %}</strong>
+                <b class="li-amount {{ 'gift' if it.is_gift else ('plus' if is_income else 'minus') }}">{{ it.amount|toman }}</b>
             </div>
             <div class="li-sub">
                 <span><i class="fas fa-calendar-day"></i> {{ it.date }}</span>
-                {% if is_income and it.quantity %}<span>{{ '%g'|format(it.quantity) }} {{ it.unit }}{% if it.unit_price %} × {{ it.unit_price|toman }}{% endif %}</span>{% endif %}
+                {% if is_income and it.quantity %}<span>{{ '%g'|format(it.quantity) }} {{ it.unit }}{% if it.unit_price %} · هر {{ it.unit or 'واحد' }} {{ it.unit_price|toman }} تومان{% endif %}</span>{% endif %}
                 {% if it.buyer %}<span><i class="fas fa-user"></i> {{ it.buyer }}</span>{% endif %}
             </div>
             {% if it.description %}<div class="li-desc">{{ it.description }}</div>{% endif %}
@@ -77,7 +81,8 @@
     <label class="field"><span>مبلغ کل (تومان)</span>
         <input id="fAmount" inputmode="numeric" autocomplete="off"></label>
     {% if is_income %}
-    <label class="field"><span>خریدار (اختیاری)</span><input id="fBuyer" autocomplete="off"></label>
+    <label class="field"><span>خریدار یا گیرنده (اختیاری)</span><input id="fBuyer" autocomplete="off"></label>
+    <label class="switch gift-switch"><input type="checkbox" id="fGift"><span>هدیه است: ارزش را می‌نویسم ولی پولی دریافت نشده</span></label>
     {% endif %}
     <label class="field"><span>توضیحات (اختیاری)</span><textarea id="fDesc" rows="2"></textarea></label>
     <div id="fErr" class="alert" hidden></div>
@@ -114,8 +119,7 @@
     $('fType').addEventListener('change', syncUnit);
     if (INCOME) {
         money('fPrice');
-        $('fQty').addEventListener('input', autoAmount);
-        $('fPrice').addEventListener('input', autoAmount);
+        window.__l3 = ui.link3($('fQty'), $('fPrice'), $('fAmount'));   // مقدار + مبلغ کل ← قیمت هر واحد (کیلویی)، و برعکس
     }
 
     function openForm(item) {
@@ -134,6 +138,8 @@
             $('fQty').value = item && item.quantity ? item.quantity : '';
             $('fPrice').value = item && item.unit_price ? fmt(String(item.unit_price)) : '';
             $('fBuyer').value = item ? item.buyer : '';
+            $('fGift').checked = !!(item && item.is_gift);
+            if (window.__l3) window.__l3.reset();
             syncUnit();
         }
         $('formDlg').showModal();
@@ -154,7 +160,7 @@
             amount: norm($('fAmount').value), description: $('fDesc').value
         };
         if (INCOME) {
-            p.quantity = norm($('fQty').value); p.unit_price = norm($('fPrice').value); p.buyer = $('fBuyer').value;
+            p.quantity = norm($('fQty').value); p.unit_price = norm($('fPrice').value); p.buyer = $('fBuyer').value; p.is_gift = $('fGift').checked;
         }
         const res = editId
             ? await call('PUT', `/api/finance/${KIND}/${editId}`, p)

@@ -34,13 +34,14 @@
         </select>
     </div>
     <div class="header-actions">
+        <button type="button" class="icon-btn" data-fs onclick="ui.toggleFullscreen()" title="تمام‌صفحه"><i class="fas fa-expand"></i><span class="btn-txt" data-fs-text>تمام‌صفحه</span></button>
         <button type="button" class="icon-btn" onclick="toggleTheme()" title="تغییر ظاهر"><i class="fas fa-moon"></i><span class="btn-txt">ظاهر</span></button>
         <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="خروج از حساب"><i class="fas fa-sign-out-alt"></i><span class="btn-txt">خروج</span></a>
     </div>
 </header>
 
 <nav class="app-nav">
-    {% for it in nav_items if it.href and it.endpoint not in ('finance.settings_page', 'manage.manage_page') %}
+    {% for it in nav_items if it.href and it.endpoint not in ('finance.settings_page', 'manage.manage_page', 'inventory.inventory_page') %}
     <a href="{{ it.href }}" class="nav-item {{ 'active' if request.endpoint == it.endpoint }}">
         <i class="fas {{ it.icon }}"></i><span>{{ it.short }}</span>
     </a>
@@ -64,6 +65,7 @@
     <div class="drawer-foot">
         <a class="drawer-item tone-gray" href="{{ url_for('index') }}"><span class="d-ic"><i class="fas fa-home"></i></span><span class="d-txt"><b>لیست کارگاه‌ها</b></span></a>
         <a class="drawer-item tone-gray" href="{{ url_for('account.account_page') }}"><span class="d-ic"><i class="fas fa-user"></i></span><span class="d-txt"><b>حساب و تنظیمات</b><small>نام کاربری، رمز، پشتیبان</small></span></a>
+        <button type="button" class="drawer-item tone-gray" data-fs onclick="ui.toggleFullscreen(); closeDrawer()"><span class="d-ic"><i class="fas fa-expand"></i></span><span class="d-txt"><b data-fs-text>تمام‌صفحه</b></span></button>
         <button type="button" class="drawer-item tone-gray" onclick="toggleTheme()"><span class="d-ic"><i class="fas fa-moon"></i></span><span class="d-txt"><b>تغییر ظاهر (روشن / تیره)</b></span></button>
         <a class="drawer-item tone-red" href="{{ url_for('auth.logout') }}"><span class="d-ic"><i class="fas fa-sign-out-alt"></i></span><span class="d-txt"><b>خروج از حساب</b></span></a>
     </div>
@@ -83,7 +85,7 @@
 </script>
 {% endif %}
 
-<main class="{{ 'app-main' if not bare }}">
+<main class="{{ 'app-main' if not bare }}{{ ' narrow' if narrow and not bare }}">
     {% block content %}{% endblock %}
 </main>
 <script src="{{ url_for('static', filename='js/app-ui.js') }}"></script>

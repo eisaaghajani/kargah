@@ -49,6 +49,7 @@
                 <span><i class="fas fa-calendar-day"></i> {{ w.date_shamsi }}</span>
                 {% if w.worker_count %}<span><i class="fas fa-users"></i> {{ w.worker_count }} نفر</span>{% endif %}
                 {% if w.total_wage %}<span>دستمزد {{ w.total_wage|toman }}</span>{% endif %}
+                {% if w.worker_count and w.total_wage %}<span>نفری {{ (w.total_wage / w.worker_count)|round|int|toman }}</span>{% endif %}
                 {% if w.food_cost %}<span>غذا {{ w.food_cost|toman }}</span>{% endif %}
             </div>
             {% if w.materials_used %}
@@ -100,9 +101,13 @@
             <button type="button" onclick="step(1)" aria-label="بیشتر">+</button>
         </div>
     </div>
-    <label class="field"><span>دستمزد هر نفر (تومان)</span>
+    <div class="tabs mini" id="wMode" role="tablist">
+        <button type="button" class="tab on" data-m="per" onclick="setMode('per')">دستمزد نفری</button>
+        <button type="button" class="tab" data-m="total" onclick="setMode('total')">مبلغ کل</button>
+    </div>
+    <label class="field"><span id="wWageLbl">دستمزد هر نفر (تومان)</span>
         <input id="wWage" inputmode="numeric" autocomplete="off" placeholder="مثلاً 800,000"></label>
-    <div class="live-total"><span>جمع دستمزد</span><b id="wTotal">0</b></div>
+    <div class="live-total"><span id="wTotalLbl">جمع دستمزد</span><b id="wTotal">0</b></div>
     <label class="field"><span>هزینه‌ی غذا (اختیاری)</span>
         <input id="wFood" inputmode="numeric" autocomplete="off"></label>
 
@@ -111,12 +116,13 @@
         <div class="row-inline">
             <select id="mSel" aria-label="ماده">
                 <option value="">ماده را انتخاب کنید…</option>
-                {% for m in materials %}<option value="{{ m.id }}" data-name="{{ m.name }}" data-unit="{{ m.unit }}">{{ m.name }} ({{ m.unit }})</option>{% endfor %}
+                {% for m in materials %}<option value="{{ m.id }}" data-name="{{ m.name }}" data-unit="{{ m.unit }}" data-stock="{{ '%g'|format(stock_of(m.id)) }}">{{ m.name }} ({{ m.unit }}) — موجودی {{ '%g'|format(stock_of(m.id)) }}</option>{% endfor %}
             </select>
             <input id="mQty" class="qty" inputmode="decimal" autocomplete="off" placeholder="مقدار" aria-label="مقدار">
             <button type="button" class="btn-sm" onclick="addMat()">افزودن</button>
         </div>
         <ul class="picked" id="pickedList"></ul>
+        <div id="stockWarn" class="alert warn" hidden style="margin-top: 8px"></div>
         <details id="nmBox" style="margin-top: 10px">
             <summary class="muted" style="cursor: pointer">ماده‌ای که در لیست نیست؟</summary>
             <div class="row-inline" style="flex-wrap: wrap; margin-top: 8px">
@@ -143,7 +149,7 @@
     const TODAY = '{{ today }}', YESTERDAY = '{{ yesterday }}';
     const $ = id => document.getElementById(id);
     const dlg = $('workDlg');
-    let editId = null, picked = [], hadMats = false, keepTotal = null;
+    let editId = null, picked = [], hadMats = false, keepTotal = null, origUse = {}, wMode = 'per';
 
     ui.money($('wWage')); ui.money($('wFood')); ui.backdropClose(dlg);
 
@@ -152,16 +158,45 @@
     const num = id => parseInt(ui.norm($(id).value), 10) || 0;
     function total() {
         if (keepTotal !== null) return keepTotal;
-        const c = num('wCount'), p = num('wWage');
-        return c > 0 ? c * p : p;
+        const c = num('wCount'), v = num('wWage');
+        return wMode === 'total' ? v : (c > 0 ? c * v : v);   // «مبلغ کل» را مستقیم بدهید یا «نفری» تا ضرب شود
+    }
+    function setMode(m) {
+        if (m === wMode) return;
+        const T = total(), c = num('wCount');
+        wMode = m; keepTotal = null;
+        $('wWage').value = !T ? '' : ui.fmt(String(m === 'total' ? T : (c > 0 ? Math.round(T / c) : T)));
+        $('wWageLbl').textContent = m === 'total' ? 'مبلغ کل دستمزد (تومان)' : 'دستمزد هر نفر (تومان)';
+        document.querySelectorAll('#wMode .tab').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+        refresh();
     }
     function refresh() {
         $('matBox').hidden = !(needsMat() || picked.length > 0);
-        $('wTotal').textContent = total().toLocaleString('en-US');
+        const T = total(), cnt = num('wCount');
+        $('wTotalLbl').textContent = wMode === 'total' ? 'دستمزد هر نفر' : 'جمع دستمزد';
+        $('wTotal').textContent = wMode === 'total' ? (cnt > 0 ? Math.round(T / cnt).toLocaleString('en-US') : '—') : T.toLocaleString('en-US');
+        stockWarn();
     }
     function touch() { keepTotal = null; refresh(); }
     function step(d) { $('wCount').value = Math.max(0, num('wCount') + d); touch(); }
     function showErr(msg) { $('wErr').textContent = msg || ''; $('wErr').hidden = !msg; }
+    // هشدار کمبود انبار (مانع ثبت نمی‌شود؛ فقط خبر می‌دهد)
+    function stockWarn() {
+        const box = $('stockWarn'); if (!box) return;
+        const need = {};
+        picked.forEach(m => { need[m.material_id] = (need[m.material_id] || 0) + m.quantity; });
+        box.innerHTML = '';
+        Object.keys(need).forEach(id => {
+            const o = [...$('mSel').options].find(x => x.value === String(id)); if (!o) return;
+            const avail = parseFloat(o.dataset.stock || '0') + (origUse[String(id)] || 0);
+            if (need[id] > avail + 1e-9) {
+                const d = document.createElement('div');
+                d.textContent = '⚠ ' + o.dataset.name + ': در انبار ' + (+avail.toFixed(2)) + ' ' + o.dataset.unit + ' هست، ' + (+need[id].toFixed(2)) + ' می‌خواهید (کسری ' + (+(need[id] - avail).toFixed(2)) + ')';
+                box.appendChild(d);
+            }
+        });
+        box.hidden = !box.children.length;
+    }
     $('wCount').addEventListener('input', touch);
     $('wWage').addEventListener('input', touch);
     $('actGrid').addEventListener('change', refresh);
@@ -194,13 +229,15 @@
         if (!name) return showErr('نام ماده را وارد کنید.');
         const res = await ui.call('POST', '/api/add_material', {workshop_id: WORKSHOP_ID, name, type: $('nmType').value, unit});
         if (!res.success) return showErr(res.error || 'ماده اضافه نشد.');
-        const o = new Option(`${name} (${unit})`, res.id); o.dataset.name = name; o.dataset.unit = unit;
+        const o = new Option(`${name} (${unit}) — موجودی 0`, res.id); o.dataset.name = name; o.dataset.unit = unit; o.dataset.stock = '0';
         $('mSel').add(o); $('mSel').value = String(res.id);
         $('nmName').value = ''; $('nmBox').open = false; $('mQty').focus(); showErr('');
     }
 
     async function openWork(item) {
-        editId = item ? item.id : null; picked = []; hadMats = false; keepTotal = null;
+        editId = item ? item.id : null; picked = []; hadMats = false; keepTotal = null; origUse = {};
+        wMode = 'per'; document.querySelectorAll('#wMode .tab').forEach(b => b.classList.toggle('on', b.dataset.m === 'per'));
+        $('wWageLbl').textContent = 'دستمزد هر نفر (تومان)';
         $('wTitle').textContent = item ? 'ویرایش کار' : 'ثبت کار جدید';
         showErr('');
         document.querySelectorAll('.pick.tmp').forEach(e => e.remove());
@@ -226,6 +263,7 @@
             const r = await ui.call('GET', '/api/get_work_materials/' + item.id);
             if (Array.isArray(r)) {
                 picked = r.map(m => ({material_id: m.material_id, name: m.name, unit: m.unit, quantity: m.quantity}));
+                r.forEach(m => { origUse[String(m.material_id)] = m.quantity; });
                 hadMats = picked.length > 0; renderPicked();
             }
         }

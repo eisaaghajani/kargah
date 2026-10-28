@@ -16,6 +16,7 @@ NAV = [
     ('finance.expense_page', 'هزینه', 'آبیاری، کارگر، گرد و روغن و...', 'fa-receipt', 'red'),
     ('reports.report_page', 'گزارش مالی', 'سود و زیان در بازه دلخواه', 'fa-chart-pie', 'blue'),
     ('archive.archive_page', 'آرشیو', 'عکس و یادداشت مراحل رشد', 'fa-images', 'purple'),
+    ('inventory.inventory_page', 'انبار', 'موجودی و فاکتور خرید سم و کود', 'fa-warehouse', 'blue'),
     ('finance.settings_page', 'تنظیمات مالی', 'انواع درآمد و هزینه، قیمت مواد', 'fa-sliders-h', 'gray'),
     ('manage.manage_page', 'مدیریت کارگاه', 'سال‌ها، فعالیت‌ها، کودها و سموم', 'fa-cog', 'gray'),
 ]

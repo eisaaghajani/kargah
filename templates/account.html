@@ -7,12 +7,13 @@
     <a class="icon-btn" href="{{ url_for('index') }}"><i class="fas fa-home"></i><span class="btn-txt">کارگاه‌ها</span></a>
     <div class="app-title"><strong><i class="fas fa-user"></i> حساب و تنظیمات</strong></div>
     <div class="header-actions" style="display: flex">
+        <button type="button" class="icon-btn" data-fs onclick="ui.toggleFullscreen()" title="تمام‌صفحه"><i class="fas fa-expand"></i><span class="btn-txt" data-fs-text>تمام‌صفحه</span></button>
         <button class="icon-btn" onclick="toggleTheme()" title="تغییر ظاهر"><i class="fas fa-moon"></i><span class="btn-txt">ظاهر</span></button>
         <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="خروج از حساب"><i class="fas fa-sign-out-alt"></i><span class="btn-txt">خروج</span></a>
     </div>
 </header>
 
-<div class="app-main">
+<div class="app-main narrow">
     <section class="card">
         <h2><i class="fas fa-user"></i> مشخصات حساب</h2>
         <p class="muted">با «نام کاربری» یا «ایمیل» وارد برنامه می‌شوید. برای هر تغییر، رمز فعلی لازم است.</p>
@@ -87,8 +88,8 @@
 
 <dialog id="delDlg" class="modal sm">
     <div class="modal-head"><h3>حذف کارگاه</h3></div>
-    <p style="margin: 0 0 10px">همه‌ی کارها، درآمدها، هزینه‌ها و عکس‌های «<b id="delName"></b>» برای همیشه پاک می‌شود. برای تأیید، نام کارگاه را بنویسید:</p>
-    <label class="field"><input id="delConfirm" autocomplete="off" placeholder="نام کارگاه"></label>
+    <p style="margin: 0 0 10px">همه‌ی کارها، درآمدها، هزینه‌ها و عکس‌های «<b id="delName"></b>» برای همیشه پاک می‌شود. برای تأیید، رمز عبور خود را وارد کنید:</p>
+    <label class="field"><input id="delConfirm" type="password" autocomplete="current-password" placeholder="رمز عبور"></label>
     <div id="delErr" class="alert" hidden></div>
     <div class="btn-row">
         <button type="button" class="btn secondary" onclick="delDlg.close()">انصراف</button>
@@ -125,7 +126,7 @@
         $('delDlg').showModal();
     }
     async function doDelete() {
-        const r = await ui.call('DELETE', '/api/workshop/' + delId, {confirm_name: $('delConfirm').value});
+        const r = await ui.call('DELETE', '/api/workshop/' + delId, {current_password: $('delConfirm').value});
         if (r.success) location.reload(); else err('delErr', r.error || 'حذف نشد.');
     }
     async function redeem() {
