@@ -96,7 +96,7 @@ def _limit_error(adding, removing=0):
     limit = current_user.photo_limit
     if limit is None or adding <= 0:
         return None
-    used = ArchivePhoto.query.count() - removing
+    used = (ArchivePhoto.query.count() + _fin_count()) - removing
     if used + adding > limit:
         return ('سقف پلن رایگان %d عکس است و %d جای خالی دارید. '
                 'برای عکس نامحدود، پلن حرفه‌ای را فعال کنید.' % (limit, max(limit - used, 0)))
@@ -138,7 +138,7 @@ def archive_page(workshop_id, year_id):
     return render_template(
         'archive.html', items=items, stage=stage, used_stages=used_stages,
         suggestions=list(dict.fromkeys(DEFAULT_STAGES + used_stages)),
-        used=ArchivePhoto.query.count(), limit=current_user.photo_limit, plan=current_user.effective_plan, **ctx)
+        used=(ArchivePhoto.query.count() + _fin_count()), limit=current_user.photo_limit, plan=current_user.effective_plan, **ctx)
 
 
 @bp.route('/media/<int:photo_id>')
@@ -253,3 +253,9 @@ def api_entry(entry_id):
         _remove_files([r for r, _, _ in saved] + [t for _, t, _ in saved])
         return _err('ذخیره نشد.', 500)
     return jsonify({'success': True})
+
+
+def _fin_count():
+    """تعداد پیوست‌های هزینه/درآمد (در سقف فضای عکس پلن حساب می‌شود)."""
+    from models import FinanceFile
+    return FinanceFile.query.count()

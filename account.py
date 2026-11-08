@@ -19,7 +19,7 @@ from flask_login import current_user
 from sqlalchemy import func
 
 from extensions import db
-from models import ArchivePhoto, License, User, Workshop, ensure_columns, seed_missing_defaults
+from models import ArchivePhoto, FinanceFile, License, User, Workshop, ensure_columns, seed_missing_defaults
 from tenancy import adopt_orphans
 
 bp = Blueprint('account', __name__)
@@ -95,7 +95,7 @@ def account_page():
         info['expired'] = True
         info['expires'] = _jdate(exp)
     return render_template('account.html', workshops=Workshop.query.order_by(Workshop.id).all(),
-                           used=ArchivePhoto.query.count(), limit=current_user.photo_limit, info=info, owner=is_owner())
+                           used=ArchivePhoto.query.count() + FinanceFile.query.count(), limit=current_user.photo_limit, info=info, owner=is_owner())
 
 
 # ---------------------------------------------------------------- مشخصات و رمز

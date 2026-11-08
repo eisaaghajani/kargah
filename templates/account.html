@@ -58,7 +58,7 @@
         {% elif info.expired %}
         <div class="alert">پلن حرفه‌ای شما در {{ info.expires }} تمام شد. اطلاعاتتان سر جایش است؛ فقط افزودن عکس جدید بیش از سقف رایگان بسته است.</div>
         {% endif %}
-        <div class="type-row"><span class="t-name">عکس‌های آرشیو</span><span>{{ used }}{% if limit %} از {{ limit }}{% else %} (نامحدود){% endif %}</span></div>
+        <div class="type-row"><span class="t-name">عکس‌ها و پیوست‌ها</span><span>{{ used }}{% if limit %} از {{ limit }}{% else %} (نامحدود){% endif %}</span></div>
         {% if not info.lifetime %}
         <label class="field" style="margin-top: 12px"><span>کد لایسنس حرفه‌ای</span>
             <input id="licCode" dir="ltr" autocomplete="off" placeholder="KRG-XXXX-XXXX-XXXX"></label>

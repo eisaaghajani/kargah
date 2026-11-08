@@ -6,12 +6,12 @@
 from contextlib import contextmanager
 
 from flask import g, has_request_context, session
-from sqlalchemy import event, func, select
+from sqlalchemy import event, func, or_, select
 from sqlalchemy.orm import Session, with_loader_criteria
 
 from extensions import db
 from models import (Activity, ArchiveEntry, ArchivePhoto, DailyWork, Expense, ExpenseCategory, FarmingYear,
-                    Income, IncomeType, Material, MaterialInvoice, MaterialPurchase, StockAdjustment, User, WorkMaterial, Workshop)
+                    FinanceFile, Income, IncomeType, Material, MaterialInvoice, MaterialPurchase, StockAdjustment, User, WorkMaterial, Workshop)
 
 _installed = False
 
@@ -38,6 +38,8 @@ def _criteria(uid):
     en = select(t(ArchiveEntry).id).where(t(ArchiveEntry).farming_year_id.in_(yr))
     inv = select(t(MaterialInvoice).id).where(t(MaterialInvoice).farming_year_id.in_(yr))
     mt = select(t(Material).id).where(t(Material).workshop_id.in_(ws))
+    ex = select(t(Expense).id).where(t(Expense).farming_year_id.in_(yr))
+    ic = select(t(Income).id).where(t(Income).farming_year_id.in_(yr))
     return [
         (Workshop, Workshop.user_id == uid),
         (FarmingYear, FarmingYear.workshop_id.in_(ws)),
@@ -54,6 +56,7 @@ def _criteria(uid):
         (MaterialInvoice, MaterialInvoice.farming_year_id.in_(yr)),
         (MaterialPurchase, MaterialPurchase.invoice_id.in_(inv)),
         (StockAdjustment, StockAdjustment.material_id.in_(mt)),
+        (FinanceFile, or_(FinanceFile.expense_id.in_(ex), FinanceFile.income_id.in_(ic))),
     ]
 
 

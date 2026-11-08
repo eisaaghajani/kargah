@@ -41,7 +41,7 @@
 </header>
 
 <nav class="app-nav">
-    {% for it in nav_items if it.href and it.endpoint not in ('finance.settings_page', 'manage.manage_page', 'inventory.inventory_page') %}
+    {% for it in nav_items if it.href and it.endpoint not in ('finance.settings_page', 'manage.manage_page') %}
     <a href="{{ it.href }}" class="nav-item {{ 'active' if request.endpoint == it.endpoint }}">
         <i class="fas {{ it.icon }}"></i><span>{{ it.short }}</span>
     </a>
@@ -88,6 +88,7 @@
 <main class="{{ 'app-main' if not bare }}{{ ' narrow' if narrow and not bare }}">
     {% block content %}{% endblock %}
 </main>
+<footer class="app-footer">© {{ copyright_year }} شرکت پارسه پردازشگر رایکاتاک · <a href="https://www.pprt.ir" target="_blank" rel="noopener">www.pprt.ir</a></footer>
 <script src="{{ url_for('static', filename='js/app-ui.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>

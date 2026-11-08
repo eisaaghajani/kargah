@@ -46,6 +46,8 @@
                 {% if it.buyer %}<span><i class="fas fa-user"></i> {{ it.buyer }}</span>{% endif %}
             </div>
             {% if it.description %}<div class="li-desc">{{ it.description }}</div>{% endif %}
+            {% set fl = files_of('income' if is_income else 'expense', it.id) %}
+            {% if fl %}<div class="att-strip">{% for f in fl[:6] %}<button type="button" class="att-th" data-item="{{ it.id }}" data-fid="{{ f.id }}" data-kind="{{ f.kind }}" data-name="{{ f.name }}" title="{{ f.name }}" onclick="openAtt({{ it.id }}, {{ f.id }})">{% if f.kind == 'image' %}<img src="/media/file/{{ f.id }}/thumb" alt="" loading="lazy">{% else %}<i class="fas fa-file-pdf"></i>{% endif %}</button>{% endfor %}{% if fl|length > 6 %}<span class="att-more">+{{ fl|length - 6 }}</span>{% endif %}</div>{% endif %}
         </div>
         <div class="li-actions">
             <button class="icon-sm" title="ویرایش" data-item='{{ it|tojson }}' onclick="openForm(JSON.parse(this.dataset.item))"><i class="fas fa-pen"></i></button>
@@ -85,6 +87,9 @@
     <label class="switch gift-switch"><input type="checkbox" id="fGift"><span>هدیه است: ارزش را می‌نویسم ولی پولی دریافت نشده</span></label>
     {% endif %}
     <label class="field"><span>توضیحات (اختیاری)</span><textarea id="fDesc" rows="2"></textarea></label>
+    <div class="field att-field"><span><i class="fas fa-paperclip"></i> پیوست (عکس فاکتور یا PDF، حداکثر ۱۰ فایل، هر کدام ۸ مگابایت)</span>
+        <input type="file" id="fFiles" accept="image/*,application/pdf" multiple>
+        <div id="fNew" class="att-strip"></div><div id="fExisting" class="att-strip"></div></div>
     <div id="fErr" class="alert" hidden></div>
     <button type="button" class="btn" onclick="save()">ذخیره</button>
 </dialog>
@@ -142,6 +147,7 @@
             if (window.__l3) window.__l3.reset();
             syncUnit();
         }
+        resetFiles(item);
         $('formDlg').showModal();
     }
     function closeForm() { $('formDlg').close(); }
@@ -165,10 +171,60 @@
         const res = editId
             ? await call('PUT', `/api/finance/${KIND}/${editId}`, p)
             : await call('POST', `/api/finance/${KIND}`, p);
-        if (res.success) { location.reload(); return; }
+        if (res.success) {
+            const fl = $('fFiles').files;
+            if (fl.length) {
+                const up = await uploadFiles(editId || res.id, fl);
+                if (!up.success) { $('fErr').textContent = 'ثبت شد، ولی پیوست‌ها ذخیره نشد: ' + (up.error || ''); $('fErr').hidden = false; await new Promise(r => setTimeout(r, 2600)); }
+            }
+            location.reload(); return;
+        }
         $('fErr').textContent = res.error || 'ذخیره نشد.';
         $('fErr').hidden = false;
     }
+    const ATT_KIND = '{{ 'income' if is_income else 'expense' }}';
+    function attItems(itemId) {
+        return [...document.querySelectorAll('.att-th[data-item="' + itemId + '"]')].map(b => ({
+            id: +b.dataset.fid, url: '/media/file/' + b.dataset.fid, kind: b.dataset.kind, name: b.dataset.name,
+            remove: () => removeAtt(+b.dataset.fid)
+        }));
+    }
+    function openAtt(itemId, fid) { const items = attItems(itemId); ui.viewer(items, Math.max(0, items.findIndex(x => x.id === fid))); }
+    async function removeAtt(fid) {
+        if (!await ui.confirm('این پیوست حذف شود؟', {danger: true})) return;
+        const r = await ui.call('DELETE', '/api/attachments/file/' + fid);
+        if (r.success) location.reload(); else ui.toast(r.error || 'حذف نشد.', true);
+    }
+    async function uploadFiles(recId, files) {
+        const fd = new FormData(); [...files].forEach(f => fd.append('files', f));
+        try { return await (await fetch('/api/attachments/' + ATT_KIND + '/' + recId, {method: 'POST', body: fd})).json(); }
+        catch (e) { return {success: false, error: 'ارتباط با سرور برقرار نشد.'}; }
+    }
+    function renderExisting(files) {
+        const box = $('fExisting'); box.innerHTML = '';
+        files.forEach((f, i) => {
+            const c = document.createElement('div'); c.className = 'att-chip';
+            const n = document.createElement('span'); n.textContent = f.name; n.onclick = () => ui.viewer(files.map(x => ({url: '/media/file/' + x.id, kind: x.kind, name: x.name})), i);
+            const d = document.createElement('button'); d.type = 'button'; d.className = 'icon-sm danger'; d.innerHTML = '<i class="fas fa-trash"></i>'; d.title = 'حذف پیوست';
+            d.onclick = async () => { if (!await ui.confirm('این پیوست حذف شود؟', {danger: true})) return; const r = await ui.call('DELETE', '/api/attachments/file/' + f.id); if (r.success) { files.splice(i, 1); renderExisting(files); } else ui.toast(r.error || 'حذف نشد.', true); };
+            c.append(n, d); box.appendChild(c);
+        });
+    }
+    async function resetFiles(item) {
+        $('fFiles').value = ''; $('fNew').innerHTML = ''; $('fExisting').innerHTML = '';
+        if (!item) return;
+        const r = await ui.call('GET', '/api/attachments/' + ATT_KIND + '/' + item.id);
+        if (r.success) renderExisting(r.files);
+    }
+    $('fFiles').addEventListener('change', () => {
+        const box = $('fNew'); box.innerHTML = ''; const list = [...$('fFiles').files];
+        const items = list.map(f => ({url: URL.createObjectURL(f), kind: f.type === 'application/pdf' ? 'pdf' : 'image', name: f.name}));
+        items.forEach((it, i) => {
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'att-th'; b.title = it.name;
+            if (it.kind === 'image') { const im = document.createElement('img'); im.src = it.url; im.alt = ''; b.appendChild(im); } else b.innerHTML = '<i class="fas fa-file-pdf"></i>';
+            b.onclick = () => ui.viewer(items, i); box.appendChild(b);
+        });
+    });
     async function del(id) {
         if (!await ui.confirm('این مورد حذف شود؟', {danger: true})) return;
         const res = await call('DELETE', `/api/finance/${KIND}/${id}`);

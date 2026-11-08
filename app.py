@@ -577,6 +577,8 @@ from signup import bp as signup_bp
 app.register_blueprint(signup_bp)
 from inventory import bp as inventory_bp
 app.register_blueprint(inventory_bp)
+from attachments import bp as attach_bp
+app.register_blueprint(attach_bp)
 # [next-blueprints] پچ‌های بعدی ماژول‌های جدید را اینجا ثبت می‌کنند
 
 with app.app_context():
@@ -590,4 +592,4 @@ with app.app_context():
 if __name__ == '__main__':
     _debug = os.environ.get('FLASK_DEBUG', '0') == '1'   # [patch4] پیش‌فرض خاموش
     app.run(host=os.environ.get('FLASK_HOST', '127.0.0.1' if _debug else '0.0.0.0'),
-            port=5011, debug=_debug)
+            port=5018, debug=_debug)

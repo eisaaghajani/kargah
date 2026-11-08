@@ -329,3 +329,54 @@
     document.addEventListener('webkitfullscreenchange', sync);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync); else sync();
 })();
+
+/* [patch15] اشتراک‌گذاری/دانلود فایل و پیش‌نمایش پیوست‌ها */
+(function () {
+    var ui = window.ui;
+    function download(url, name) {
+        var a = document.createElement('a'); a.href = url; a.download = name || ''; document.body.appendChild(a); a.click(); a.remove();
+    }
+    // اشتراک‌گذاری با منوی خود گوشی (Web Share)؛ اگر مرورگر/آدرس پشتیبانی نکند، فایل دانلود می‌شود
+    // (Web Share فقط روی HTTPS یا localhost کار می‌کند)
+    ui.shareFile = async function (url, name, title) {
+        try {
+            var r = await fetch(url, {credentials: 'same-origin'}), blob = await r.blob();
+            var file = new File([blob], name, {type: blob.type});
+            if (navigator.canShare && navigator.canShare({files: [file]})) { await navigator.share({files: [file], title: title || name}); return true; }
+        } catch (e) { if (e && e.name === 'AbortError') return false; }
+        download(url, name);
+        ui.toast('اشتراک‌گذاری مستقیم در این مرورگر/آدرس ممکن نیست؛ فایل دانلود شد.');
+        return false;
+    };
+    ui.downloadFile = download;
+
+    // items: [{url, kind: 'image'|'pdf', name, remove?: async fn}]
+    ui.viewer = function (items, index) {
+        if (!items.length) return;
+        var i = Math.min(Math.max(index || 0, 0), items.length - 1), dlg = document.createElement('dialog');
+        dlg.className = 'modal viewer'; document.body.appendChild(dlg);
+        function btn(cls, html, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = cls; b.innerHTML = html; b.onclick = fn; return b; }
+        function render() {
+            var it = items[i]; dlg.innerHTML = '';
+            var head = document.createElement('div'); head.className = 'v-head';
+            var t = document.createElement('strong'); t.textContent = it.name + (items.length > 1 ? '  (' + (i + 1) + ' از ' + items.length + ')' : '');
+            head.appendChild(t); head.appendChild(btn('icon-sm', '<i class="fas fa-times"></i>', function () { dlg.close(); }));
+            var body = document.createElement('div'); body.className = 'v-body';
+            if (it.kind === 'pdf') { var f = document.createElement('iframe'); f.src = it.url; f.title = it.name; body.appendChild(f); }
+            else { var im = document.createElement('img'); im.src = it.url; im.alt = it.name; body.appendChild(im); }
+            var foot = document.createElement('div'); foot.className = 'v-foot';
+            if (items.length > 1) {
+                foot.appendChild(btn('btn-sm secondary', 'قبلی', function () { i = (i - 1 + items.length) % items.length; render(); }));
+                foot.appendChild(btn('btn-sm secondary', 'بعدی', function () { i = (i + 1) % items.length; render(); }));
+            }
+            foot.appendChild(btn('btn-sm', '<i class="fas fa-share-alt"></i> اشتراک', function () { ui.shareFile(it.url, it.name, it.name); }));
+            foot.appendChild(btn('btn-sm secondary', '<i class="fas fa-download"></i> دانلود', function () { download(it.url + (it.url.indexOf('blob:') === 0 ? '' : '?download=1'), it.name); }));
+            if (it.kind === 'pdf') { var a = document.createElement('a'); a.className = 'btn-sm secondary'; a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'باز کردن در تب جدید'; foot.appendChild(a); }
+            if (it.remove) foot.appendChild(btn('btn-sm secondary', '<i class="fas fa-trash"></i> حذف', async function () { dlg.close(); await it.remove(); }));
+            dlg.appendChild(head); dlg.appendChild(body); dlg.appendChild(foot);
+        }
+        dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+        dlg.addEventListener('close', function () { dlg.remove(); });
+        render(); dlg.showModal();
+    };
+})();

@@ -127,6 +127,25 @@ class License(db.Model):
     used_at = db.Column(db.DateTime)
 
 
+# ==================== پیوست هزینه/درآمد ====================
+class FinanceFile(db.Model):
+    """پیوست (عکس فاکتور یا PDF) برای یک هزینه یا یک درآمد؛ دقیقاً یکی از expense_id / income_id پر است."""
+    __tablename__ = 'finance_files'
+    id = db.Column(db.Integer, primary_key=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True)
+    income_id = db.Column(db.Integer, db.ForeignKey('incomes.id'), nullable=True)
+    filename = db.Column(db.String(200), nullable=False)
+    thumb = db.Column(db.String(200), nullable=True)
+    orig_name = db.Column(db.String(200), default='')
+    kind = db.Column(db.String(10), default='image')       # image | pdf
+    mime = db.Column(db.String(50), default='')
+    size_bytes = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    expense = db.relationship('Expense', backref=db.backref('files', cascade='all, delete-orphan'))
+    income = db.relationship('Income', backref=db.backref('files', cascade='all, delete-orphan'))
+
+
 # ==================== انبار سم و کود ====================
 class MaterialInvoice(db.Model):
     __tablename__ = 'material_invoices'
